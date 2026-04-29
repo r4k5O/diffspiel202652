@@ -1,0 +1,1656 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+<title>Pixel-Museum RPG</title>
+<link rel="icon" href="./icon.png">
+<meta property="og:image" content="./icon.png">
+<style>
+:root{--bg:#050509;--text:#fff4cf;--panel:#171726;--panel2:#24243a;--accent:#5cf2c0;--accent2:#ffcf5c;--bad:#ff4d6d;--safe-top:env(safe-area-inset-top,0px);--safe-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:"Courier New",monospace;touch-action:none;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+button{font:inherit;cursor:pointer;border-radius:0!important}
+canvas{display:block;background:#111;image-rendering:pixelated;touch-action:none}
+#gameWrap{position:fixed;inset:0;background:#050509;display:grid;place-items:center;overflow:hidden}
+#stage{position:relative;width:100vw;height:100vh;display:grid;place-items:center;overflow:hidden}
+
+.main-menu{position:fixed;inset:0;z-index:60;display:grid;place-items:center;background:radial-gradient(circle at 50% 35%,rgba(92,242,192,.18),transparent 28%),radial-gradient(circle at 25% 80%,rgba(255,207,92,.12),transparent 24%),#050509;padding:calc(14px + var(--safe-top)) 14px calc(14px + var(--safe-bottom))}
+.main-menu.hidden{display:none}
+.menu-shell{position:relative;width:min(620px,94vw);max-height:calc(100vh - 28px - var(--safe-top) - var(--safe-bottom));background:rgba(18,18,31,.96);border:7px solid #050509;box-shadow:0 0 0 5px #464663,0 18px 0 rgba(0,0,0,.38);overflow:hidden}
+.menu-box{width:100%;max-height:calc(100vh - 42px - var(--safe-top) - var(--safe-bottom));overflow:auto;background:transparent;padding:clamp(14px,3vw,24px);padding-right:58px;display:grid;gap:10px;text-align:center;scrollbar-width:none!important;-ms-overflow-style:none!important}
+.menu-box::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
+.pixel-scrollbar{position:absolute;top:8px;right:8px;bottom:8px;width:34px;background:#06060a;border:4px solid #050509;box-shadow:inset 0 0 0 3px #1b1b2d,0 0 0 2px #464663;z-index:20;pointer-events:none}
+.pixel-scrollbar-track{position:absolute;left:6px;right:6px;top:34px;bottom:34px;background:#10101b;border:3px solid #050509;box-shadow:inset -3px -3px rgba(0,0,0,.35)}
+.pixel-scrollbar-thumb{position:absolute;left:4px;width:14px;height:80px;background:#ffcf5c;border:3px solid #050509;box-shadow:inset -4px -4px rgba(0,0,0,.35),0 0 0 2px #fff4cf}
+.pixel-scrollbar-thumb:before,.pixel-scrollbar-thumb:after{content:"";position:absolute;left:3px;right:3px;height:3px;background:#050509}
+.pixel-scrollbar-thumb:before{top:8px}
+.pixel-scrollbar-thumb:after{bottom:8px}
+.pixel-arrow{position:absolute;left:3px;width:20px;height:24px;background:#24243a;border:3px solid #050509;box-shadow:inset -3px -3px rgba(0,0,0,.28),0 0 0 1px #fff4cf}
+.pixel-arrow.up{top:3px}
+.pixel-arrow.down{bottom:3px}
+.pixel-arrow.up:before{content:"";position:absolute;left:4px;top:5px;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:9px solid #ffcf5c;filter:drop-shadow(0 2px 0 #050509)}
+.pixel-arrow.down:before{content:"";position:absolute;left:4px;top:7px;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:9px solid #5cf2c0;filter:drop-shadow(0 -2px 0 #050509)}
+
+.menu-icon{width:100%;height:clamp(110px,22vh,180px);object-fit:cover;image-rendering:auto;border:5px solid #050509;box-shadow:0 0 0 3px #464663,inset -5px -5px rgba(0,0,0,.25);background:#10101b}
+.menu-icon-fallback{display:none;width:100%;height:clamp(110px,22vh,180px);border:5px solid #050509;box-shadow:0 0 0 3px #464663;background:linear-gradient(135deg,#171726,#24243a);place-items:center;color:var(--accent2);font-weight:bold;text-shadow:2px 2px #000}
+.menu-icon-fallback.active{display:grid}
+.menu-box h1{margin:0;color:var(--accent2);font-size:clamp(26px,7vw,54px);line-height:1;text-shadow:4px 4px 0 #000;letter-spacing:2px}
+.menu-subtitle{margin:0;color:var(--accent);font-size:clamp(12px,2vw,15px)}
+.menu-box button{width:100%;color:var(--text);background:var(--panel2);border:5px solid #050509;padding:clamp(9px,2vw,12px) 14px;text-align:center;font-weight:bold;box-shadow:inset -5px -5px rgba(0,0,0,.22)}
+.menu-box button:hover:not(:disabled){background:#363654;color:var(--accent2)}
+.menu-box button:disabled{opacity:.45;cursor:not-allowed}
+.menu-info{min-height:64px;margin-top:4px;padding:10px;background:rgba(5,5,9,.62);border:3px solid #050509;font-size:clamp(12px,2vw,14px);line-height:1.35}
+.menu-section{display:grid;gap:8px;padding:10px;background:rgba(5,5,9,.42);border:3px solid #050509;text-align:left}
+.menu-section-title{margin:0;color:var(--accent);font-size:14px;text-align:center}
+.primary-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.primary-actions button{min-height:48px}
+.primary-actions #startButton{grid-column:1/-1;background:#2f5f4f;color:#fff4cf;font-size:18px}
+.slot-grid,.extras-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.extras-grid{grid-template-columns:1fr 1fr}
+.menu-fold{background:rgba(5,5,9,.42);border:3px solid #050509;text-align:left}
+.menu-fold summary{list-style:none;cursor:pointer;padding:10px 12px;color:var(--accent);font-weight:bold;text-align:center;background:#10101b;border-bottom:3px solid #050509}
+.menu-fold summary::-webkit-details-marker{display:none}
+.menu-fold summary:after{content:" +";color:var(--accent2)}
+.menu-fold[open] summary:after{content:" -"}
+.menu-fold-body{display:grid;gap:8px;padding:10px}
+.auth-panel{display:grid;gap:8px;text-align:left}
+.auth-panel h2{margin:0;color:var(--accent);font-size:15px;text-align:center}
+.auth-panel input{width:100%;min-height:38px;color:var(--text);background:#10101b;border:4px solid #050509;padding:8px;font:inherit;outline:none}
+.auth-panel input:focus{box-shadow:0 0 0 2px var(--accent)}
+.auth-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.auth-actions button,.auth-panel .wide-button{padding:8px 10px}
+.sync-status,.leaderboard-list{min-height:22px;font-size:12px;line-height:1.35;color:var(--accent2);text-align:center}
+.leaderboard-list{color:var(--text);text-align:left}
+
+.hud{position:fixed;top:calc(10px + var(--safe-top));left:10px;right:10px;z-index:8;display:flex;gap:8px;flex-wrap:wrap;pointer-events:none}
+.hud-pill{padding:7px 9px;background:rgba(10,10,18,.78);border:3px solid #050509;box-shadow:0 0 0 2px #464663;color:var(--text);font-size:clamp(11px,1.8vw,14px)}
+.hud-pill strong{color:var(--accent2)}
+.quick-save-button{position:fixed;right:10px;bottom:calc(10px + var(--safe-bottom));z-index:14;width:auto;color:var(--text);background:rgba(36,36,58,.92);border:4px solid #050509;padding:8px 12px;font-weight:bold;box-shadow:0 0 0 2px #464663,inset -4px -4px rgba(0,0,0,.25);display:none}
+.quick-save-button.active{display:block}
+.quick-save-button:hover{background:#363654;color:var(--accent2)}
+.audio-widget{position:fixed;right:10px;top:calc(10px + var(--safe-top));z-index:15;display:grid;gap:6px;justify-items:end}
+.speaker-button{width:42px;height:42px;color:var(--text);background:rgba(36,36,58,.92);border:4px solid #050509;box-shadow:0 0 0 2px #464663,inset -4px -4px rgba(0,0,0,.25);padding:0;font-size:20px;line-height:1}
+.speaker-button:hover{background:#363654;color:var(--accent2)}
+.volume-panel{display:none;width:190px;background:rgba(16,16,27,.96);border:4px solid #050509;box-shadow:0 0 0 2px #464663;padding:8px;gap:7px;text-align:left}
+.audio-widget.open .volume-panel{display:grid}
+.volume-panel label{font-size:12px;color:var(--accent);line-height:1.2}
+.volume-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
+.volume-value{min-width:34px;text-align:right;color:var(--accent2);font-size:12px}
+.volume-panel input[type=range]{width:100%;accent-color:#ffcf5c}
+.volume-panel button{color:var(--text);background:var(--panel2);border:3px solid #050509;padding:7px;font-weight:bold;box-shadow:inset -3px -3px rgba(0,0,0,.22)}
+
+.dialog{position:fixed;left:clamp(8px,2vw,18px);right:clamp(8px,2vw,18px);bottom:clamp(12px,2vw,18px);z-index:20;min-height:120px;max-height:min(48vh,310px);overflow:auto;display:none;background:rgba(15,15,25,.96);border:5px solid #050509;box-shadow:0 0 0 4px #464663;padding:clamp(10px,2vw,14px);scrollbar-width:none!important}
+.dialog::-webkit-scrollbar{display:none!important}
+.dialog.active{display:block}
+.dialog h2{margin:0 0 8px;color:var(--accent);font-size:clamp(16px,2.5vw,20px);text-shadow:2px 2px #000}
+.dialog p{margin:0 0 10px;line-height:1.45;font-size:clamp(13px,2vw,16px)}
+.answers{display:grid;gap:8px}
+.answers button,.dialog button,.winbox button{color:var(--text);background:var(--panel2);border:4px solid #050509;padding:8px 12px;text-align:left;box-shadow:inset -4px -4px rgba(0,0,0,.22)}
+.answers button:hover,.dialog button:hover,.winbox button:hover{background:#363654;color:var(--accent2)}
+
+.cutscene{position:fixed;inset:0;z-index:35;display:none;background:#050509}
+.cutscene.active{display:block}
+.cutscene-inner{position:absolute;inset:0;display:grid;grid-template-rows:1fr auto;gap:12px;padding:calc(12px + var(--safe-top)) 16px calc(12px + var(--safe-bottom));background:radial-gradient(circle at 50% 32%,rgba(92,242,192,.14),transparent 32%),#050509}
+.scene-art{position:relative;overflow:hidden;background:#141424;border:6px solid #050509;box-shadow:0 0 0 4px #464663;min-height:160px}
+.scene-art:after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(to bottom,rgba(255,255,255,.04) 0,rgba(255,255,255,.04) 2px,transparent 2px,transparent 6px);pointer-events:none}
+.cut-text{background:rgba(16,16,27,.97);border:5px solid #050509;box-shadow:0 0 0 4px #464663;padding:14px;max-height:42vh;overflow:auto;scrollbar-width:none!important}
+.cut-text::-webkit-scrollbar{display:none!important}
+.cut-text h2{margin:0 0 8px;color:var(--accent2);font-size:clamp(18px,3vw,24px);text-shadow:2px 2px #000}
+.cut-text p{margin:0 0 10px;line-height:1.45;font-size:clamp(13px,2vw,16px)}
+.fact-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}
+.fact-card{background:rgba(5,5,9,.72);border:3px solid #050509;padding:8px;box-shadow:inset -3px -3px rgba(0,0,0,.25);font-size:clamp(11px,1.8vw,13px);line-height:1.3}
+.fact-card strong{display:block;color:var(--accent);margin-bottom:4px}
+.cut-hint{color:var(--accent);font-size:12px}
+.pixel-shape{position:absolute;box-shadow:inset -4px -4px rgba(0,0,0,.22)}
+.float{animation:float 1.8s ease-in-out infinite alternate}
+.pulse{animation:pulse 1s steps(3) infinite}
+.slide{animation:slide 4s linear infinite alternate}
+.blink{animation:blink .8s steps(2) infinite}
+@keyframes float{from{transform:translateY(0)}to{transform:translateY(-12px)}}
+@keyframes pulse{0%{filter:brightness(1)}50%{filter:brightness(1.7)}100%{filter:brightness(1)}}
+@keyframes slide{from{transform:translateX(-12px)}to{transform:translateX(12px)}}
+@keyframes blink{0%,48%{opacity:1}49%,100%{opacity:.25}}
+
+.mobile-controls{position:fixed;left:0;right:0;bottom:0;z-index:12;display:none;pointer-events:none;padding:0 clamp(10px,3vw,18px) calc(12px + var(--safe-bottom));justify-content:space-between;align-items:flex-end}
+.dpad{display:grid;grid-template-columns:clamp(46px,9vw,58px) clamp(46px,9vw,58px) clamp(46px,9vw,58px);grid-template-rows:clamp(46px,9vw,58px) clamp(46px,9vw,58px) clamp(46px,9vw,58px);gap:6px;pointer-events:auto}
+.touch-btn{border:4px solid #050509;background:rgba(36,36,58,.86);color:var(--text);box-shadow:0 0 0 2px #464663,inset -5px -5px rgba(0,0,0,.25);font-weight:bold;text-align:center;touch-action:none;user-select:none}
+.touch-btn:active,.touch-btn.active{background:var(--accent2);color:#17110a}
+.dpad .up{grid-column:2;grid-row:1}.dpad .left{grid-column:1;grid-row:2}.dpad .down{grid-column:2;grid-row:3}.dpad .right{grid-column:3;grid-row:2}
+.action-buttons{display:grid;grid-template-columns:clamp(66px,12vw,84px) clamp(66px,12vw,84px);gap:8px;pointer-events:auto}
+.action-buttons .touch-btn{height:clamp(48px,9vw,60px)}
+.action-buttons .menu-touch{grid-column:1/3;height:clamp(38px,7vw,44px);font-size:12px}
+.win{position:fixed;inset:0;z-index:70;display:none;place-items:center;background:rgba(0,0,0,.82);padding:16px}
+.win.active{display:grid}
+.winbox{width:min(680px,94vw);max-height:90vh;overflow:auto;background:#24243a;border:6px solid #050509;box-shadow:0 0 0 5px #595979,0 18px 0 rgba(0,0,0,.3);padding:20px;text-align:center}
+.orientation-lock{position:fixed;inset:0;z-index:120;display:none;place-items:center;background:#050509;text-align:center;padding:24px}
+.orientation-box{max-width:420px;border:6px solid #050509;box-shadow:0 0 0 5px #464663;background:#171726;padding:24px}
+@media(max-width:900px),(pointer:coarse){
+.quick-save-button{right:10px;bottom:calc(122px + var(--safe-bottom));font-size:12px;padding:7px 10px}
+.audio-widget{top:calc(58px + var(--safe-top))}
+.volume-panel{width:170px}
+.mobile-controls{display:flex}
+.dialog{bottom:calc(112px + var(--safe-bottom))}
+.hud{top:calc(8px + var(--safe-top));left:8px;right:8px}
+.fact-grid{grid-template-columns:1fr}
+.scene-art{min-height:120px}
+.cut-text{max-height:46vh}
+}
+@media(max-height:480px){
+.hud{gap:5px}.hud-pill{padding:5px 7px}.dialog{max-height:38vh}.menu-box{gap:8px;padding:14px;padding-right:58px}
+.mobile-controls{padding-bottom:calc(8px + var(--safe-bottom))}
+.dpad{grid-template-columns:44px 44px 44px;grid-template-rows:44px 44px 44px}
+.action-buttons{grid-template-columns:62px 62px}.action-buttons .touch-btn{height:44px}.action-buttons .menu-touch{height:34px}
+}
+@media(max-width:520px){
+.primary-actions,.slot-grid,.extras-grid{grid-template-columns:1fr}
+.primary-actions #startButton{font-size:16px}
+}
+@media(orientation:portrait) and (max-width:900px){.orientation-lock{display:grid}}
+</style>
+</head>
+<body>
+<div id="startScreen" class="main-menu">
+  <div class="menu-shell">
+    <div id="menuBox" class="menu-box">
+      <img id="menuIcon" class="menu-icon" src="./icon.png" alt="Pixel-Museum RPG Icon">
+      <div id="menuIconFallback" class="menu-icon-fallback">Pixel-Museum RPG</div>
+      <h1>Pixel-Museum</h1>
+      <p class="menu-subtitle">Große dynamische Welt</p>
+      <section class="menu-section" aria-label="Spiel starten">
+        <div class="primary-actions">
+          <button id="startButton" type="button">Start</button>
+          <button id="continueButton" type="button" disabled>Fortsetzen</button>
+          <button id="saveCurrentButton" type="button">Speichern</button>
+        </div>
+      </section>
+      <details class="menu-fold" open>
+        <summary>Spielstände</summary>
+        <div class="menu-fold-body">
+          <div class="slot-grid">
+            <button id="saveSlot1Button" type="button">Slot 1</button>
+            <button id="saveSlot2Button" type="button">Slot 2</button>
+            <button id="saveSlot3Button" type="button">Slot 3</button>
+          </div>
+          <button id="clearSavesButton" type="button">Spielstände löschen</button>
+        </div>
+      </details>
+      <details class="menu-fold">
+        <summary>Schülerkonto</summary>
+        <div class="menu-fold-body auth-panel" aria-label="Schüler-Anmeldung">
+          <input id="studentNameInput" type="text" autocomplete="username" placeholder="Schülername" maxlength="32">
+          <input id="studentPasswordInput" type="password" autocomplete="current-password" placeholder="Passwort" maxlength="80">
+          <input id="studentWordInput" type="password" autocomplete="off" placeholder="Wortschutz" maxlength="80">
+          <div class="auth-actions">
+            <button id="registerButton" type="button">Registrieren</button>
+            <button id="loginButton" type="button">Anmelden</button>
+          </div>
+          <button id="syncButton" class="wide-button" type="button">Fortschritt sichern</button>
+          <button id="logoutButton" class="wide-button" type="button">Abmelden</button>
+          <div id="syncStatus" class="sync-status">Nicht angemeldet. Dein Fortschritt bleibt auf diesem Gerät erhalten.</div>
+        </div>
+      </details>
+      <details class="menu-fold">
+        <summary>Leaderboard</summary>
+        <div class="menu-fold-body">
+          <button id="leaderboardButton" type="button">Leaderboard laden</button>
+          <div id="leaderboardList" class="leaderboard-list"></div>
+        </div>
+      </details>
+      <section class="menu-section" aria-label="Extras">
+        <p class="menu-section-title">Extras</p>
+        <div class="extras-grid">
+          <button id="researchButton" type="button">Recherche</button>
+          <button id="githubButton" type="button">GitHub</button>
+          <button id="controlsButton" type="button">Steuerung</button>
+          <button id="creditsButton" type="button">Credits</button>
+          <button id="soundButton" type="button">Ton: An</button>
+          <button id="restartButton" type="button">Neustart</button>
+        </div>
+      </section>
+      <div id="menuInfo" class="menu-info">Neu: riesige scrollende Karte, Kamera, 5 Museumszonen, Tore, NPCs, Minimap, Wetter, Archivseiten, Glitches und Lerncutscenes.</div>
+    </div>
+    <div id="fakeScrollbar" class="pixel-scrollbar" aria-hidden="true">
+      <div class="pixel-arrow up"></div>
+      <div class="pixel-scrollbar-track"><div id="fakeScrollbarThumb" class="pixel-scrollbar-thumb"></div></div>
+      <div class="pixel-arrow down"></div>
+    </div>
+  </div>
+</div>
+
+<main id="gameWrap">
+  <div id="stage"><canvas id="game" width="640" height="480"></canvas></div>
+  <button id="quickSaveButton" class="quick-save-button" type="button">Aktuell speichern</button>
+  <div id="audioWidget" class="audio-widget">
+    <button id="speakerButton" class="speaker-button" type="button" aria-label="Ton">🔊</button>
+    <div class="volume-panel" aria-label="Toneinstellungen">
+      <label for="dialogVolumeInput">Gesprächslautstärke</label>
+      <div class="volume-row">
+        <input id="dialogVolumeInput" type="range" min="0" max="100" value="70">
+        <span id="dialogVolumeValue" class="volume-value">70%</span>
+      </div>
+      <button id="muteGameButton" type="button">Ton ausschalten</button>
+    </div>
+  </div>
+  <div class="hud">
+    <div class="hud-pill">Punkte: <strong id="scoreHud">0</strong></div>
+    <div class="hud-pill">Kapitel: <strong id="foundHud">0 / 8</strong></div>
+    <div class="hud-pill">Archiv: <strong id="pagesHud">0 / 30</strong></div>
+    <div class="hud-pill">Zonen: <strong id="zonesHud">1 / 5</strong></div>
+    <div class="hud-pill">Leben: <strong id="livesHud">5</strong></div>
+    <div class="hud-pill">Aufgabe: <strong id="taskHud">Start</strong></div>
+  </div>
+  <div id="mobileControls" class="mobile-controls">
+    <div class="dpad">
+      <button class="touch-btn up" type="button" data-key="arrowup">▲</button>
+      <button class="touch-btn left" type="button" data-key="arrowleft">◀</button>
+      <button class="touch-btn right" type="button" data-key="arrowright">▶</button>
+      <button class="touch-btn down" type="button" data-key="arrowdown">▼</button>
+    </div>
+    <div class="action-buttons">
+      <button id="touchInteract" class="touch-btn" type="button">E</button>
+      <button id="touchJump" class="touch-btn" type="button">JUMP</button>
+      <button id="touchMenu" class="touch-btn menu-touch" type="button">Menü</button>
+    </div>
+  </div>
+  <section id="dialog" class="dialog"><h2 id="dialogTitle">Dialog</h2><p id="dialogText">Text</p><div id="answers" class="answers"></div></section>
+  <section id="cutscene" class="cutscene" aria-live="polite">
+    <div class="cutscene-inner">
+      <div id="sceneArt" class="scene-art"></div>
+      <div class="cut-text">
+        <h2 id="cutTitle">Lerncutscene</h2>
+        <p id="cutBody">Text</p>
+        <div id="factGrid" class="fact-grid"></div>
+        <div class="cut-hint">Leertaste, Enter, Klick oder E: weiter</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="orientationLock" class="orientation-lock"><div class="orientation-box"><h2>Bitte drehen</h2><p>Dieses Pixel-RPG ist für Querformat gemacht.</p></div></div>
+<div id="win" class="win"><div class="winbox"><h2>Ausstellung gerettet!</h2><p id="winText">Du hast alle Kapitel gemeistert.</p><button type="button" onclick="restartGame()">Noch einmal spielen</button></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
+<script>
+(()=>{
+'use strict';
+
+const $=id=>document.getElementById(id);
+const VIEW_W=640,VIEW_H=480,WORLD_W=1920,WORLD_H=1440;
+const SAVE_PREFIX='diifspiel202625';
+const RESEARCH_URL='https://docs.google.com/document/d/1LGb7JmevFOraEv_EVNaqMuvIybfenaJK/edit?usp=sharing&ouid=107074859706876190029&rtpof=true&sd=true';
+const ICON_URL='./icon.png';
+const CREDITS_HTML='Credits:<br><b>Spiel, Idee und Recherche von: Oskar Bergatt</b><br>Im Rahmen des DiFF-Projektes';
+
+const canvas=$('game'),ctx=canvas.getContext('2d');
+ctx.imageSmoothingEnabled=false;
+
+const menuBox=$('menuBox'),fakeScrollbar=$('fakeScrollbar'),fakeScrollbarThumb=$('fakeScrollbarThumb');
+const startScreen=$('startScreen'),startButton=$('startButton'),continueButton=$('continueButton'),saveSlot1Button=$('saveSlot1Button'),saveSlot2Button=$('saveSlot2Button'),saveSlot3Button=$('saveSlot3Button'),saveCurrentButton=$('saveCurrentButton'),clearSavesButton=$('clearSavesButton'),researchButton=$('researchButton'),githubButton=$('githubButton'),restartButton=$('restartButton'),controlsButton=$('controlsButton'),creditsButton=$('creditsButton'),soundButton=$('soundButton'),menuInfo=$('menuInfo'),scoreHud=$('scoreHud'),foundHud=$('foundHud'),pagesHud=$('pagesHud'),zonesHud=$('zonesHud'),livesHud=$('livesHud'),taskHud=$('taskHud'),dialog=$('dialog'),dialogTitle=$('dialogTitle'),dialogText=$('dialogText'),answersEl=$('answers'),cutscene=$('cutscene'),sceneArt=$('sceneArt'),cutTitle=$('cutTitle'),cutBody=$('cutBody'),factGrid=$('factGrid'),winEl=$('win'),winText=$('winText'),touchInteract=$('touchInteract'),touchJump=$('touchJump'),touchMenu=$('touchMenu'),quickSaveButton=$('quickSaveButton'),audioWidget=$('audioWidget'),speakerButton=$('speakerButton'),dialogVolumeInput=$('dialogVolumeInput'),dialogVolumeValue=$('dialogVolumeValue'),muteGameButton=$('muteGameButton'),menuIcon=$('menuIcon'),menuIconFallback=$('menuIconFallback'),studentNameInput=$('studentNameInput'),studentPasswordInput=$('studentPasswordInput'),studentWordInput=$('studentWordInput'),registerButton=$('registerButton'),loginButton=$('loginButton'),syncButton=$('syncButton'),leaderboardButton=$('leaderboardButton'),logoutButton=$('logoutButton'),syncStatus=$('syncStatus'),leaderboardList=$('leaderboardList');
+
+let locked=true,menuOpen=true,gameStarted=false,score=0,lives=5,lastAutoSave=0,currentSlot='autosave',fallCooldown=0,lastJump=0,activeChapter=null,activeQuestionIndex=0,activeCutscene=null,cutsceneIndex=0,afterCutscene=null,time=0,weatherTimer=0,weather='Sonne',winSoundPlayed=false;
+let cam={x:0,y:0};
+let correctSlotBag=[];
+let authSession=readJson(SAVE_PREFIX+'authSession',null);
+let syncBusy=false;
+let sqliteDb=null;
+const sqliteReady=initSqlite();
+let audioCtx=null,masterGain=null,musicGain=null,dialogGain=null,musicTimer=null,musicStep=0,soundMuted=readJson(SAVE_PREFIX+'soundMuted',false),dialogVolume=readJson(SAVE_PREFIX+'dialogVolume',70);
+const keys=new Set();
+const spawn={x:120,y:1180};
+const player={x:spawn.x,y:spawn.y,w:22,h:26,speed:2.05,jumpZ:0,jumpV:0,jumping:false,moving:false,dir:'down',animTick:0,animFrame:0,idleTick:0};
+const popups=[];
+
+const zones=[
+{id:'lobby',name:'Lobby',x:0,y:960,w:520,h:480,need:0,needChapter:null},
+{id:'arcade',name:'Arcade-Halle',x:520,y:960,w:520,h:480,need:4,needChapter:'odyssey'},
+{id:'lab',name:'DDR-Labor',x:1040,y:960,w:520,h:480,need:8,needChapter:'pong'},
+{id:'studio',name:'Software-Garten',x:1040,y:480,w:520,h:480,need:12,needChapter:'bss'},
+{id:'future',name:'Zukunftsflügel',x:520,y:0,w:1040,h:480,need:18,needChapter:'software'}
+];
+
+const chapters=[
+{id:'odyssey',name:'Odyssey',label:'Odyssey',x:200,y:1080,color:'#fff4cf',need:0,done:false,cutSeen:false,qs:[['Wer war ein wichtiger Heimkonsolen-Pionier?',['Ralph H. Baer','Mojang','V.Tech'],0],['Was machte die Odyssey besonders?',['Frühe Heimkonsole','Streamingdienst','Smartphone'],0],['Was brauchten frühe Spiele oft?',['Fantasie und einfache Formen','Fotorealismus','Internetpflicht'],0]]},
+{id:'pong',name:'Pong',label:'Pong',x:720,y:1120,color:'#5cf2c0',need:4,done:false,cutSeen:false,qs:[['Was ist die Kernidee von Pong?',['Ball und Schläger','Fantasy-Welt','Flugsimulator'],0],['Warum ist Pong wichtig?',['Einfache Regeln können spannend sein','Es war ein Rollenspiel','Es hatte 4K-Grafik'],0],['Was trainiert Pong besonders?',['Reaktion','Fotobearbeitung','Textsatz'],0]]},
+{id:'bss',name:'BSS 01',label:'BSS 01',x:1190,y:1140,color:'#ffcf5c',need:8,done:false,cutSeen:false,qs:[['Was war BSS 01?',['DDR-Konsole','Streamingdienst','Schulheft'],0],['Was zeigt BSS 01?',['Improvisation bei knapper Technik','Nur Luxus','Nur Online-Spiele'],0],['Wie waren viele Spiele darauf?',['Pongartig','Open World','VR'],0]]},
+{id:'software',name:'Studios',label:'Studios',x:1250,y:680,color:'#69a7ff',need:12,done:false,cutSeen:false,qs:[['Wofür ist Schweden im Gaming bekannt?',['Software und Studios','TV-Folien','DDR-Konsole'],0],['Was ist Teil von Gaming-Geschichte?',['Entwicklung und Studios','Nur Kabel','Nur Plastik'],0],['Mojang ist ein Beispiel für…',['schwedische Spieleentwicklung','eine DDR-Fabrik','eine TV-Folie'],0]]},
+{id:'learning',name:'V.Smile',label:'Lernen',x:930,y:230,color:'#ff8e7a',need:14,done:false,cutSeen:false,qs:[['Was war V.Smile?',['Lernspielkonsole','PlayStation','Schaltkreis'],0],['Was verbindet V.Smile?',['Spielen und Lernen','Kochen und Bauen','Autos und Wetter'],0],['Warum gehört das ins Museum?',['Weil Spiele auch Bildung sein können','Weil es nur Deko ist','Weil es kein Spiel ist'],0]]},
+{id:'definition',name:'Definition',label:'Definition',x:1160,y:250,color:'#d58cff',need:16,done:false,cutSeen:false,qs:[['Was ist eine Konsole kurz?',['Computer zum Spielen','Nur Musikgerät','Schulheft'],0],['Was gehört noch zur Spielkultur?',['Menschen, Ideen, Technik','Nur Verpackung','Nur Stromkabel'],0],['Warum reicht eine Definition nicht?',['Geschichte hat viele Perspektiven','Weil Wörter verboten sind','Weil es keine Geräte gibt'],0]]},
+{id:'modern',name:'PlayStation',label:'Modern',x:1440,y:250,color:'#a7ff5c',need:18,done:false,cutSeen:false,qs:[['Welche Firma gehört zur PlayStation?',['Sony','V.Tech','Magnavox'],0],['Was wurde später wichtiger?',['3D-Welten und größere Spiele','Nur TV-Folien','Nur Pong'],0],['Was zeigt die moderne Ära?',['Technik und Märkte wachsen','Alles bleibt gleich','Es gibt keine Software'],0]]},
+{id:'culture',name:'Kultur',label:'Kultur',x:760,y:320,color:'#f77cc2',need:20,done:false,cutSeen:false,qs:[['Was gehört zur Spielkultur?',['Menschen und Kreativität','Nur Plastik','Nur Kabel'],0],['Warum ist Gaming mehr als Hardware?',['Menschen spielen, bauen und diskutieren','Weil niemand spielt','Weil Hardware nie existiert'],0],['Was rettest du im Museum?',['Zusammenhänge und Wissen','Nur eine Kiste','Ein einzelnes Kabel'],0]]}
+];
+
+const learningScenes={
+odyssey:[{title:'Lerncutscene: Ralphs Werkstatt',body:'Im Labor wird ein Fernseher zur Spielfläche. Aus einfachen Punkten und Linien entsteht die Idee der Heimkonsole.',art:'workshop',facts:[['Person','Ralph H. Baer gilt als wichtiger Pionier der Heimkonsole.'],['Jahr','Die Magnavox Odyssey erschien 1972.'],['Prinzip','Frühe Spiele brauchten neue Denkweisen.']]},{title:'Odyssey: Spielen mit Fantasie',body:'Manche Hintergründe wurden nicht berechnet, sondern mit Folien direkt auf dem Fernseher ergänzt.',art:'tv',facts:[['Technik','Noch keine moderne Grafik.'],['Trick','Folien halfen bei Spielhintergründen.'],['Merksatz','Frühe Spielgeschichte ist Erfindungsgeist.']]}],
+pong:[{title:'Lerncutscene: Die Pong-Arena',body:'Ein Ball, zwei Schläger, klare Regeln. Pong zeigt, dass ein Spielprinzip auch ohne komplexe Grafik funktionieren kann.',art:'pong',facts:[['Kern','Ball und Schläger.'],['Stärke','Sofort verständlich.'],['Einfluss','Viele frühe Spiele orientierten sich daran.']]}],
+bss:[{title:'Lerncutscene: DDR-Techniklabor',body:'Das Bildschirmspiel 01 zeigt, wie Technikgeschichte von Verfügbarkeit, Politik und Improvisation geprägt wird.',art:'factory',facts:[['BSS 01','Ein besonderes Kapitel der DDR-Spielgeschichte.'],['Technik','Pongartige Spiele mit Spezialbaustein.'],['Kontext','Nicht überall war Elektronik gleich verfügbar.']]}],
+software:[{title:'Lerncutscene: Software statt Konsole',body:'Gaming-Geschichte besteht nicht nur aus Geräten. Studios, Entwickler und Ideen prägen die Kultur genauso.',art:'code',facts:[['Schweden','Bekannt durch Spieleentwicklung.'],['Studios','Teams erschaffen Welten.'],['Beispiel','Mojang steht für schwedische Spielekultur.']]}],
+learning:[{title:'Lerncutscene: Lernen durch Spielen',body:'Die V.Smile steht für eine Idee: Spiele können unterhalten und gleichzeitig Wissen vermitteln.',art:'school',facts:[['V.Smile','Eine Lernspielkonsole.'],['Ziel','Spiel und Bildung verbinden.'],['Museum','Auch Lernspiele gehören zur Spielgeschichte.']]}],
+definition:[{title:'Lerncutscene: Was ist eine Konsole?',body:'Kurz gesagt: Eine Spielkonsole ist ein Computer zum Spielen. Aber Kultur, Menschen und Ideen gehören ebenfalls dazu.',art:'book',facts:[['Definition','Computer zum Spielen.'],['Mehrwert','Nicht nur Hardware zählt.'],['Kultur','Spielgeschichte hat viele Perspektiven.']]}],
+modern:[{title:'Lerncutscene: Sprung in moderne Welten',body:'Spätere Konsolen brachten größere Spielwelten, 3D-Grafik und neue Märkte. Die PlayStation steht für diesen Wandel.',art:'city',facts:[['Firma','PlayStation gehört zu Sony.'],['Entwicklung','3D und größere Welten.'],['Wandel','Gaming wurde stärker global.']]}],
+culture:[{title:'Lerncutscene: Spielkultur',body:'Gaming ist nicht nur Technik. Menschen spielen, bauen, erinnern, diskutieren und entwickeln eigene Ideen.',art:'crowd',facts:[['Gemeinschaft','Spieler tauschen Wissen aus.'],['Kreativität','Eigene Projekte entstehen.'],['Fazit','Spielgeschichte ist Kulturgeschichte.']]}]
+};
+
+const pagePos=[
+[120,1240],[230,1110],[360,1320],[450,1190],
+[610,1270],[720,1070],[870,1300],[980,1160],
+[1120,1260],[1260,1080],[1420,1320],[1510,1160],
+[1140,1190],[1480,1265],
+[1120,820],[1280,650],[1450,760],[1510,520],
+[1080,700],[1180,900],[1400,880],[1530,700],
+[620,360],[760,130],[940,330],[1090,150],
+[1220,360],[1360,140],[1480,320],[1510,110]
+];
+
+const pages=pagePos.map((p,i)=>({x:p[0],y:p[1],id:'p'+i,got:false,visible:i<8}));
+
+const npcs=[
+{x:290,y:1190,w:22,h:26,name:'Kuratorin Pixel',msg:'Willkommen! Die Welt ist jetzt viel größer. Sammle Archivseiten, damit neue Tore öffnen.'},
+{x:850,y:1180,w:22,h:26,name:'Arcade-Fan',msg:'Manche Seiten erscheinen erst, wenn du genug Fortschritt hast.'},
+{x:1310,y:1080,w:22,h:26,name:'Labor-Techniker',msg:'Die roten Glitches patrouillieren. Beobachte ihren Rhythmus.'},
+{x:1320,y:620,w:22,h:26,name:'Entwicklerin Svea',msg:'Im Software-Garten bewegen sich die Wege anders. Suche hinter Wänden.'},
+{x:1020,y:250,w:22,h:26,name:'Archivgeist',msg:'Fast geschafft. Der Zukunftsflügel verbindet alle Themen.'}
+];
+
+const glitches=[
+{x:700,y:1210,w:24,h:24,baseX:700,range:55,t:0,spd:.0048,defeated:false},
+{x:1190,y:1260,w:24,h:24,baseX:1190,range:60,t:1.2,spd:.0042,defeated:false},
+{x:1380,y:720,w:24,h:24,baseX:1380,range:50,t:2.4,spd:.005,defeated:false},
+{x:980,y:320,w:24,h:24,baseX:980,range:60,t:3.1,spd:.004,defeated:false},
+{x:1490,y:290,w:24,h:24,baseX:1490,range:48,t:4.4,spd:.0045,defeated:false}
+];
+
+const gates=[
+{x:512,y:1000,w:22,h:290,need:4,name:'Arcade-Tor'},
+{x:1032,y:1000,w:22,h:290,need:8,name:'Labor-Tor'},
+{x:1180,y:930,w:320,h:22,need:12,name:'Garten-Aufzug'},
+{x:620,y:470,w:790,h:22,need:18,name:'Zukunftsbrücke'}
+];
+
+const obstacles=[
+{x:0,y:0,w:WORLD_W,h:28},{x:0,y:WORLD_H-28,w:WORLD_W,h:28},{x:0,y:0,w:28,h:WORLD_H},{x:WORLD_W-28,y:0,w:28,h:WORLD_H},
+{x:0,y:930,w:520,h:28},{x:1560,y:930,w:360,h:28},{x:520,y:930,w:500,h:28},
+{x:520,y:480,w:28,h:450},{x:1558,y:480,w:28,h:450},{x:520,y:0,w:28,h:480},{x:1558,y:0,w:28,h:480},
+{x:240,y:1030,w:160,h:32},{x:690,y:1320,w:180,h:32},{x:1160,y:1010,w:190,h:32},
+{x:1280,y:530,w:180,h:32},{x:860,y:260,w:140,h:32},{x:1320,y:170,w:170,h:32}
+];
+
+const ravines=[
+{x:600,y:1120,w:150,h:42},
+{x:1280,y:1220,w:170,h:42},
+{x:1180,y:610,w:210,h:42},
+{x:690,y:210,w:160,h:42}
+];
+
+const ramps=[
+{x:560,y:1090,w:42,h:24},
+{x:1240,y:1190,w:42,h:24},
+{x:1140,y:580,w:42,h:24},
+{x:650,y:180,w:42,h:24}
+];
+
+const particles=Array.from({length:60},(_,i)=>({x:(i*97)%WORLD_W,y:(i*53)%WORLD_H,s:1+(i%3),v:.2+(i%4)*.06}));
+
+function collectedPages(){return pages.filter(p=>p.got).length}
+function chapterDone(id){return !id||!!chapters.find(c=>c.id===id&&c.done)}
+function unlockedZones(){return zones.filter(z=>isZoneUnlocked(z)).length}
+function zoneAt(x,y){return zones.find(z=>x>=z.x&&x<z.x+z.w&&y>=z.y&&y<z.y+z.h)||null}
+function isZoneUnlocked(z){return !!z&&collectedPages()>=z.need&&chapterDone(z.needChapter)}
+function updateWorldUnlocks(){pages.forEach(p=>{const z=zoneAt(p.x,p.y);p.visible=isZoneUnlocked(z)})}
+
+function updatePixelScrollbar(){
+const max=menuBox.scrollHeight-menuBox.clientHeight;
+if(max<=0){fakeScrollbar.style.display='none';return}
+fakeScrollbar.style.display='block';
+const trackEl=fakeScrollbar.querySelector('.pixel-scrollbar-track');
+const track=trackEl.clientHeight-8;
+const ratio=menuBox.clientHeight/menuBox.scrollHeight;
+const thumbH=Math.max(48,Math.floor(track*ratio));
+const y=4+Math.floor((track-thumbH)*(menuBox.scrollTop/max));
+fakeScrollbarThumb.style.height=thumbH+'px';
+fakeScrollbarThumb.style.top=y+'px';
+}
+
+function resizeGame(){
+const s=Math.min(innerWidth/VIEW_W,innerHeight/VIEW_H);
+canvas.style.width=Math.round(VIEW_W*s)+'px';
+canvas.style.height=Math.round(VIEW_H*s)+'px';
+requestAnimationFrame(updatePixelScrollbar);
+}
+addEventListener('resize',resizeGame);
+addEventListener('orientationchange',()=>setTimeout(resizeGame,80));
+menuBox.addEventListener('scroll',updatePixelScrollbar);
+resizeGame();
+
+function overlap(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y}
+function pbox(nx=player.x,ny=player.y){return{x:nx+4,y:ny+12,w:player.w-8,h:player.h-12}}
+function inAny(r,a){return a.some(o=>overlap(r,o))}
+function solidAt(nx,ny){
+const b=pbox(nx,ny);
+const center={x:b.x+b.w/2,y:b.y+b.h/2};
+const targetZone=zoneAt(center.x,center.y);
+if(!targetZone)return true;
+if(!isZoneUnlocked(targetZone))return true;
+if(obstacles.some(o=>overlap(b,o)))return true;
+for(const g of gates){if(collectedPages()<g.need&&overlap(b,g))return true}
+return false;
+}
+
+function readJson(key,fallback){
+try{
+const raw=localStorage.getItem(key);
+return raw?JSON.parse(raw):fallback;
+}catch{return fallback}
+}
+function writeJson(key,value){
+try{localStorage.setItem(key,JSON.stringify(value));return true}catch{return false}
+}
+function ensureAudio(){
+if(soundMuted)return null;
+if(!audioCtx){
+audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+masterGain=audioCtx.createGain();
+musicGain=audioCtx.createGain();
+dialogGain=audioCtx.createGain();
+masterGain.gain.value=.34;
+musicGain.gain.value=.13;
+dialogGain.gain.value=dialogVolume/72;
+musicGain.connect(masterGain);
+dialogGain.connect(masterGain);
+masterGain.connect(audioCtx.destination);
+}
+if(audioCtx.state==='suspended')audioCtx.resume();
+startMusic();
+return audioCtx;
+}
+function tone(freq,dur=.08,type='square',vol=.35,when=0,targetGain=masterGain){
+const ctx=ensureAudio();
+if(!ctx)return;
+const t=ctx.currentTime+when;
+const osc=ctx.createOscillator();
+const gain=ctx.createGain();
+osc.type=type;
+osc.frequency.setValueAtTime(freq,t);
+gain.gain.setValueAtTime(0,t);
+gain.gain.linearRampToValueAtTime(vol,t+.012);
+gain.gain.exponentialRampToValueAtTime(.001,t+dur);
+osc.connect(gain);
+gain.connect(targetGain||masterGain);
+osc.start(t);
+osc.stop(t+dur+.03);
+}
+function noise(dur=.12,vol=.22,when=0){
+const ctx=ensureAudio();
+if(!ctx)return;
+const len=Math.max(1,Math.floor(ctx.sampleRate*dur));
+const buffer=ctx.createBuffer(1,len,ctx.sampleRate);
+const data=buffer.getChannelData(0);
+for(let i=0;i<len;i++)data[i]=(Math.random()*2-1)*(1-i/len);
+const src=ctx.createBufferSource();
+const gain=ctx.createGain();
+const t=ctx.currentTime+when;
+src.buffer=buffer;
+gain.gain.setValueAtTime(vol,t);
+gain.gain.exponentialRampToValueAtTime(.001,t+dur);
+src.connect(gain);
+gain.connect(masterGain);
+src.start(t);
+}
+function sfx(name){
+if(soundMuted)return;
+if(name==='menu')tone(440,.045,'square',.12);
+else if(name==='start'){[392,523,659,784].forEach((n,i)=>tone(n,.08,'square',.22,i*.055))}
+else if(name==='jump'){tone(330,.06,'triangle',.18);tone(660,.08,'triangle',.14,.04)}
+else if(name==='page'){[880,1175,1568].forEach((n,i)=>tone(n,.07,'square',.2,i*.045))}
+else if(name==='glitch'){noise(.11,.16);tone(180,.12,'sawtooth',.14)}
+else if(name==='hurt'){noise(.16,.24);[220,155,110].forEach((n,i)=>tone(n,.09,'sawtooth',.18,i*.055))}
+else if(name==='correct'){[523,659,784].forEach((n,i)=>tone(n,.075,'square',.18,i*.06,dialogGain))}
+else if(name==='wrong'){[260,196].forEach((n,i)=>tone(n,.1,'triangle',.16,i*.07,dialogGain))}
+else if(name==='save')tone(988,.07,'square',.14);
+else if(name==='cut')tone(740,.08,'triangle',.11,0,dialogGain);
+else if(name==='talk'){tone(520,.035,'triangle',.08,0,dialogGain);tone(650,.035,'triangle',.06,.045,dialogGain)}
+else if(name==='win'){[392,523,659,784,1046].forEach((n,i)=>tone(n,.16,'square',.22,i*.09))}
+}
+function speechNoise(text='',voice='neutral'){
+if(soundMuted)return;
+const ctx=ensureAudio();
+if(!ctx)return;
+const clean=String(text).replace(/<[^>]*>/g,'').replace(/\s+/g,' ').trim();
+const tokens=clean.match(/[a-zA-ZäöüÄÖÜß]+|[.,!?;:…]/g)||['hm'];
+const profiles={
+neutral:{base:430,spread:260,type:'triangle',rate:.088,scale:[0,2,3,5,7,10]},
+curator:{base:500,spread:300,type:'square',rate:.084,scale:[0,3,5,7,10,12]},
+npc:{base:350,spread:230,type:'triangle',rate:.092,scale:[0,2,5,7,9,12]},
+quiz:{base:470,spread:280,type:'square',rate:.086,scale:[0,4,5,7,11,12]},
+cutscene:{base:290,spread:210,type:'sawtooth',rate:.105,scale:[0,2,3,7,8,12]},
+success:{base:560,spread:250,type:'triangle',rate:.08,scale:[0,2,4,7,9,12]},
+warning:{base:230,spread:160,type:'sawtooth',rate:.096,scale:[0,1,5,6,10,12]}
+};
+const p=profiles[voice]||profiles.neutral;
+let textHash=0;
+for(const ch of clean)textHash=(textHash*31+ch.charCodeAt(0))>>>0;
+let when=0,spoken=0;
+for(const token of tokens){
+if(/[.,!?;:…]/.test(token)){
+when+=token==='?'?.38:token==='!'?.32:.24;
+continue;
+}
+const lower=token.toLowerCase();
+const vowels=(lower.match(/[aeiouäöü]/g)||[]).length;
+const syllables=Math.min(5,Math.max(1,vowels||Math.ceil(lower.length/4)));
+let wordHash=textHash;
+for(const ch of lower)wordHash=(wordHash*33+ch.charCodeAt(0))>>>0;
+for(let s=0;s<syllables;s++){
+if(spoken>130)return;
+const charCode=lower.charCodeAt((s*2)%lower.length)||97;
+const scale=p.scale[(wordHash+s+charCode)%p.scale.length];
+const octave=((wordHash>>s)&1)?1:0;
+const contour=(s-(syllables-1)/2)*18;
+const freq=(p.base+contour)*Math.pow(2,(scale+octave*12)/12);
+const vowelBoost=vowels>s?.045:0;
+const dur=.07+Math.min(.075,lower.length*.006)+vowelBoost;
+const vol=.135+Math.min(.075,lower.length*.006)+(voice==='cutscene'?.025:0);
+tone(freq,dur,p.type,vol,when,dialogGain);
+if((wordHash+s)%3===0)tone(freq*1.5,.026,'triangle',vol*.32,when+.018,dialogGain);
+if((wordHash+s)%5===0)tone(freq*.5,.036,'triangle',vol*.28,when+.026,dialogGain);
+when+=p.rate+(s===syllables-1?.075:0);
+spoken++;
+}
+when+=.075;
+}
+}
+function startMusic(){
+if(soundMuted||musicTimer||!audioCtx)return;
+const bass=[98,98,130.81,98,146.83,130.81,98,87.31];
+const lead=[392,0,523.25,0,587.33,523.25,392,329.63,349.23,392,0,523.25,659.25,587.33,523.25,0];
+musicTimer=setInterval(()=>{
+if(soundMuted||!audioCtx||audioCtx.state==='suspended')return;
+if(!menuOpen&&gameStarted){
+tone(bass[musicStep%bass.length],.13,'triangle',.11,0,musicGain);
+const n=lead[musicStep%lead.length];
+if(n)tone(n,.09,'square',.07,.02,musicGain);
+}
+musicStep++;
+},170);
+}
+function toggleSound(){
+soundMuted=!soundMuted;
+writeJson(SAVE_PREFIX+'soundMuted',soundMuted);
+if(soundMuted){
+if(musicTimer){clearInterval(musicTimer);musicTimer=null}
+if(masterGain)masterGain.gain.value=0;
+}else{
+if(masterGain)masterGain.gain.value=.34;
+ensureAudio();
+sfx('start');
+}
+updateSoundButton();
+}
+function updateSoundButton(){updateAudioControls()}
+function updateAudioControls(){
+dialogVolumeInput.value=dialogVolume;
+dialogVolumeValue.textContent=dialogVolume+'%';
+speakerButton.textContent=soundMuted?'🔇':'🔊';
+soundButton.textContent=soundMuted?'Ton: Aus':'Ton: An';
+muteGameButton.textContent=soundMuted?'Ton einschalten':'Ton ausschalten';
+if(dialogGain)dialogGain.gain.value=dialogVolume/72;
+}
+function setDialogVolume(value){
+dialogVolume=Math.max(0,Math.min(100,Number(value)||0));
+writeJson(SAVE_PREFIX+'dialogVolume',dialogVolume);
+if(dialogGain)dialogGain.gain.value=dialogVolume/72;
+updateAudioControls();
+}
+function bytesToBase64(bytes){
+let binary='';
+for(let i=0;i<bytes.length;i++)binary+=String.fromCharCode(bytes[i]);
+return btoa(binary);
+}
+function base64ToBytes(text){
+const binary=atob(text);
+const bytes=new Uint8Array(binary.length);
+for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+return bytes;
+}
+function saveSqlite(){
+if(!sqliteDb)return;
+try{localStorage.setItem(SAVE_PREFIX+'sqliteDb',bytesToBase64(sqliteDb.export()))}catch{}
+}
+async function initSqlite(){
+try{
+if(!window.initSqlJs)throw new Error('SQL.js nicht geladen');
+const SQL=await window.initSqlJs({locateFile:file=>'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/'+file});
+const stored=localStorage.getItem(SAVE_PREFIX+'sqliteDb');
+sqliteDb=stored?new SQL.Database(base64ToBytes(stored)):new SQL.Database();
+sqliteDb.run(`
+CREATE TABLE IF NOT EXISTS students (
+  username TEXT PRIMARY KEY,
+  password_hash TEXT NOT NULL,
+  word_hash TEXT NOT NULL,
+  best_score INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS devices (
+  username TEXT NOT NULL,
+  device_identifier TEXT NOT NULL,
+  trusted INTEGER NOT NULL DEFAULT 1,
+  PRIMARY KEY (username, device_identifier)
+);
+CREATE TABLE IF NOT EXISTS saves (
+  username TEXT NOT NULL,
+  slot TEXT NOT NULL,
+  data TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (username, slot)
+);
+`);
+saveSqlite();
+return true;
+}catch(err){
+console.warn(err);
+return false;
+}
+}
+async function withSqlite(){
+const ok=await sqliteReady;
+return ok?sqliteDb:null;
+}
+function sqliteOne(sql,params=[]){
+const stmt=sqliteDb.prepare(sql,params);
+try{return stmt.step()?stmt.getAsObject():null}finally{stmt.free()}
+}
+function sqliteAll(sql,params=[]){
+const stmt=sqliteDb.prepare(sql,params);
+const rows=[];
+try{while(stmt.step())rows.push(stmt.getAsObject());return rows}finally{stmt.free()}
+}
+function textValue(input){return input.value.trim()}
+function localAuthKey(){return SAVE_PREFIX+'students'}
+async function localRegisterSqlite(username,password,wordProtection,deviceIdentifier){
+const db=await withSqlite();
+if(!db)return false;
+const existing=sqliteOne('SELECT username FROM students WHERE username = ?', [username]);
+if(existing){setSyncStatus('Dieser Schülername ist lokal bereits vergeben.');return true}
+db.run('INSERT INTO students (username, password_hash, word_hash, best_score, created_at) VALUES (?, ?, ?, 0, ?)', [username, await sha256(password), await sha256(wordProtection), new Date().toISOString()]);
+db.run('INSERT OR REPLACE INTO devices (username, device_identifier, trusted) VALUES (?, ?, 1)', [username, deviceIdentifier]);
+saveSqlite();
+authSession={username,token:null,local:true,sqlite:true};
+writeJson(SAVE_PREFIX+'authSession',authSession);
+setSyncStatus('Registriert. Dein Fortschritt wird auf diesem Gerät gespeichert.');
+return true;
+}
+async function localLoginSqlite(username,password,wordProtection,deviceIdentifier){
+const db=await withSqlite();
+if(!db)return false;
+const user=sqliteOne('SELECT username, password_hash, word_hash FROM students WHERE username = ?', [username]);
+if(!user||(await sha256(password))!==user.password_hash){setSyncStatus('Anmeldung fehlgeschlagen.');return true}
+const device=sqliteOne('SELECT device_identifier FROM devices WHERE username = ? AND device_identifier = ?', [username, deviceIdentifier]);
+if(!device){
+if(!wordProtection||(await sha256(wordProtection))!==user.word_hash){setSyncStatus('Neues Gerät: Bitte Wortschutz eingeben.');return true}
+db.run('INSERT OR REPLACE INTO devices (username, device_identifier, trusted) VALUES (?, ?, 1)', [username, deviceIdentifier]);
+saveSqlite();
+}
+authSession={username,token:null,local:true,sqlite:true};
+writeJson(SAVE_PREFIX+'authSession',authSession);
+setSyncStatus('Angemeldet. Dein Fortschritt ist bereit.');
+return true;
+}
+async function localSaveSqlite(slot,data){
+if(!authSession?.local)return;
+const db=await withSqlite();
+if(!db)return;
+const username=authSession.username;
+db.run('INSERT OR REPLACE INTO saves (username, slot, data, updated_at) VALUES (?, ?, ?, ?)', [username, slot, JSON.stringify(data), data.updatedAt]);
+db.run('UPDATE students SET best_score = MAX(best_score, ?) WHERE username = ?', [data.score||0, username]);
+saveSqlite();
+}
+async function localLoadSqlite(slot='autosave'){
+if(!authSession?.local)return null;
+const db=await withSqlite();
+if(!db)return null;
+const row=sqliteOne('SELECT data FROM saves WHERE username = ? AND slot = ?', [authSession.username, slot]);
+return row?JSON.parse(row.data):null;
+}
+async function localLeaderboardSqlite(){
+const db=await withSqlite();
+if(!db)return null;
+return sqliteAll('SELECT username, best_score AS bestScore FROM students ORDER BY best_score DESC LIMIT 10');
+}
+function getDeviceId(){
+let id=localStorage.getItem(SAVE_PREFIX+'deviceId');
+if(!id){
+id='device-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
+localStorage.setItem(SAVE_PREFIX+'deviceId',id);
+}
+return id;
+}
+async function sha256(value){
+const bytes=new TextEncoder().encode(value);
+const hash=await crypto.subtle.digest('SHA-256',bytes);
+return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function apiJson(path,method='GET',body=null){
+const headers={'Content-Type':'application/json'};
+if(authSession?.token)headers.Authorization='Bearer '+authSession.token;
+const res=await fetch(path,{method,headers,body:body?JSON.stringify(body):null});
+const data=await res.json().catch(()=>({}));
+if(!res.ok)throw new Error(data.message||data.error||'Verbindung nicht erreichbar');
+return data;
+}
+function setSyncStatus(text){syncStatus.textContent=text;requestAnimationFrame(updatePixelScrollbar)}
+function refreshAuthUi(){
+const name=authSession?.username;
+logoutButton.disabled=!authSession;
+syncButton.disabled=!authSession||syncBusy;
+const defaultText=name?'Angemeldet als '+name+'. Dein Fortschritt ist bereit.':'Nicht angemeldet. Dein Fortschritt bleibt auf diesem Gerät erhalten.';
+if(!syncStatus.textContent||syncStatus.textContent.includes('Nicht angemeldet')||syncStatus.textContent.includes('Angemeldet als '))setSyncStatus(defaultText);
+}
+async function registerStudent(){
+const username=textValue(studentNameInput),password=studentPasswordInput.value,wordProtection=studentWordInput.value;
+if(username.length<2){setSyncStatus('Bitte einen Schülernamen eintragen.');return}
+if(password.length<8){setSyncStatus('Das Passwort braucht mindestens 8 Zeichen.');return}
+if(!wordProtection.trim()){setSyncStatus('Bitte einen Wortschutz eintragen.');return}
+if(password===wordProtection){setSyncStatus('Passwort und Wortschutz müssen verschieden sein.');return}
+const deviceIdentifier=getDeviceId();
+try{
+const data=await apiJson('/api/register','POST',{username,password,wordProtection,deviceIdentifier});
+authSession={username,token:data.token||data.sessionToken||'api-session'};
+writeJson(SAVE_PREFIX+'authSession',authSession);
+setSyncStatus('Registriert. Spielstand wird geladen.');
+await syncNow();
+}catch{
+if(await localRegisterSqlite(username,password,wordProtection,deviceIdentifier)){
+refreshAuthUi();
+studentPasswordInput.value='';
+studentWordInput.value='';
+return;
+}
+const users=readJson(localAuthKey(),{});
+if(users[username]){setSyncStatus('Dieser Schülername ist lokal bereits vergeben.');return}
+users[username]={passwordHash:await sha256(password),wordHash:await sha256(wordProtection),devices:[deviceIdentifier],bestScore:0};
+writeJson(localAuthKey(),users);
+authSession={username,token:null,local:true};
+writeJson(SAVE_PREFIX+'authSession',authSession);
+setSyncStatus('Registriert. Dein Fortschritt bleibt auf diesem Gerät erhalten.');
+}
+refreshAuthUi();
+studentPasswordInput.value='';
+studentWordInput.value='';
+}
+async function loginStudent(){
+const username=textValue(studentNameInput),password=studentPasswordInput.value,wordProtection=studentWordInput.value;
+if(!username||!password){setSyncStatus('Bitte Schülername und Passwort eintragen.');return}
+const deviceIdentifier=getDeviceId();
+try{
+const data=await apiJson('/api/login','POST',{username,password,wordProtection,deviceIdentifier});
+if(data.requiresWordProtection){setSyncStatus('Dieses Gerät braucht den Wortschutz.');return}
+authSession={username,token:data.token||data.sessionToken||'api-session'};
+writeJson(SAVE_PREFIX+'authSession',authSession);
+setSyncStatus('Angemeldet. Spielstand wird geladen.');
+await syncNow();
+}catch{
+if(await localLoginSqlite(username,password,wordProtection,deviceIdentifier)){
+refreshAuthUi();
+studentPasswordInput.value='';
+studentWordInput.value='';
+return;
+}
+const users=readJson(localAuthKey(),{});
+const user=users[username];
+if(!user||(await sha256(password))!==user.passwordHash){setSyncStatus('Anmeldung fehlgeschlagen.');return}
+if(!user.devices.includes(deviceIdentifier)){
+if(!wordProtection||(await sha256(wordProtection))!==user.wordHash){setSyncStatus('Neues Gerät: Bitte Wortschutz eingeben.');return}
+user.devices.push(deviceIdentifier);
+writeJson(localAuthKey(),users);
+}
+authSession={username,token:null,local:true};
+writeJson(SAVE_PREFIX+'authSession',authSession);
+setSyncStatus('Angemeldet. Dein Fortschritt bleibt auf diesem Gerät erhalten.');
+}
+refreshAuthUi();
+studentPasswordInput.value='';
+studentWordInput.value='';
+}
+function logoutStudent(){
+authSession=null;
+localStorage.removeItem(SAVE_PREFIX+'authSession');
+leaderboardList.textContent='';
+refreshAuthUi();
+}
+
+function sk(s){return SAVE_PREFIX+s}
+function getS(s){try{return localStorage.getItem(sk(s))}catch{return null}}
+function setS(s,v){try{localStorage.setItem(sk(s),v);return true}catch{return false}}
+function remS(s){try{localStorage.removeItem(sk(s))}catch{}}
+function hasSave(s){return!!getS(s)}
+function slotLabel(s){return s==='autosave'?'Autosave':s.replace('slot','Slot ')}
+
+function saveData(){
+return{
+score,lives,gameStarted,
+player:{x:player.x,y:player.y},
+chapters:chapters.map(c=>({id:c.id,done:c.done,cutSeen:c.cutSeen})),
+pages:pages.map(p=>({id:p.id,got:p.got,visible:p.visible})),
+glitches:glitches.map((g,i)=>({i,defeated:!!g.defeated})),
+weather,
+updatedAt:new Date().toISOString()
+}
+}
+
+function applySaveData(d){
+score=d.score||0;lives=d.lives||5;gameStarted=!!d.gameStarted;
+winSoundPlayed=false;
+player.x=d.player?.x??spawn.x;player.y=d.player?.y??spawn.y;
+weather=d.weather||'Sonne';
+chapters.forEach(c=>{const f=d.chapters?.find(x=>x.id===c.id);c.done=!!f?.done;c.cutSeen=!!f?.cutSeen});
+pages.forEach(p=>{const f=d.pages?.find(x=>x.id===p.id);p.got=!!f?.got;p.visible=!!f?.visible});
+glitches.forEach((g,i)=>{const f=d.glitches?.find(x=>x.i===i);g.defeated=!!f?.defeated});
+updateWorldUnlocks();
+}
+
+function updateLocalBestScore(){
+if(!authSession?.local)return;
+const users=readJson(localAuthKey(),{});
+const user=users[authSession.username];
+if(user){
+user.bestScore=Math.max(user.bestScore||0,score||0);
+writeJson(localAuthKey(),users);
+}
+}
+
+async function pushRemoteSave(slot,data,silent=true){
+if(!authSession)return;
+updateLocalBestScore();
+if(authSession.local)return;
+try{
+await apiJson('/api/progress','PUT',{slot,currentLevel:chapters.filter(c=>c.done).length,progressData:data,score:data.score,updatedAt:data.updatedAt});
+await apiJson('/api/scores','POST',{score:data.score,level:chapters.filter(c=>c.done).length});
+if(!silent)setSyncStatus('Spielstand gesichert.');
+}catch(err){
+if(!silent)setSyncStatus('Spielstand konnte gerade nicht gesichert werden.');
+}
+}
+
+function saveGame(slot='autosave',silent=false){
+currentSlot=slot;
+const data=saveData();
+const ok=setS(slot,JSON.stringify(data));
+localSaveSqlite(slot,data);
+pushRemoteSave(slot,data,silent);
+updateSaveButtons();
+if(!silent)sfx('save');
+if(!silent)menuInfo.textContent=ok?`Gespeichert in ${slotLabel(slot)}.`:'Speichern fehlgeschlagen.';
+requestAnimationFrame(updatePixelScrollbar);
+return ok;
+}
+
+async function loadGame(slot='autosave'){
+let raw=getS(slot);
+if(!raw){
+const sqliteSave=await localLoadSqlite(slot);
+if(sqliteSave)raw=JSON.stringify(sqliteSave);
+}
+if(!raw){menuInfo.textContent=`${slotLabel(slot)} ist leer.`;return}
+try{
+const d=JSON.parse(raw);
+applySaveData(d);
+locked=false;menuOpen=false;
+startScreen.classList.add('hidden');
+dialog.classList.remove('active');
+cutscene.classList.remove('active');
+updateStats();
+}catch(err){console.warn(err);menuInfo.textContent='Spielstand konnte nicht geladen werden.'}
+}
+
+async function syncNow(){
+if(!authSession){setSyncStatus('Bitte erst anmelden oder registrieren.');return}
+syncBusy=true;
+refreshAuthUi();
+try{
+if(authSession.local){
+const raw=getS('autosave');
+if(raw)updateLocalBestScore();
+const sqliteSave=await localLoadSqlite('autosave');
+if(sqliteSave&&!raw)setS('autosave',JSON.stringify(sqliteSave));
+setSyncStatus('Fortschritt ist auf diesem Gerät gespeichert.');
+return;
+}
+const remote=await apiJson('/api/progress','GET');
+const remoteData=remote.progressData||remote.progress_data;
+const localRaw=getS('autosave');
+const localData=localRaw?JSON.parse(localRaw):null;
+const remoteTime=remoteData?.updatedAt?Date.parse(remoteData.updatedAt):0;
+const localTime=localData?.updatedAt?Date.parse(localData.updatedAt):0;
+if(remoteData&&remoteTime>localTime){
+setS('autosave',JSON.stringify(remoteData));
+applySaveData(remoteData);
+updateStats();
+setSyncStatus('Spielstand geladen.');
+}else if(localData){
+await pushRemoteSave('autosave',localData,false);
+}
+}catch(err){
+setSyncStatus('Spielstand konnte gerade nicht abgeglichen werden.');
+}finally{
+syncBusy=false;
+refreshAuthUi();
+}
+}
+
+async function loadLeaderboard(){
+leaderboardList.textContent='Leaderboard wird geladen...';
+try{
+const rows=await apiJson('/api/leaderboard','GET');
+leaderboardList.innerHTML=(Array.isArray(rows)?rows:rows.items||[]).slice(0,10).map((r,i)=>`${i+1}. ${r.username}: ${r.bestScore??r.best_score??r.score} Punkte`).join('<br>')||'Noch keine Scores.';
+}catch{
+const sqliteRows=await localLeaderboardSqlite();
+if(sqliteRows){
+leaderboardList.innerHTML=sqliteRows.map((r,i)=>`${i+1}. ${r.username}: ${r.bestScore} Punkte`).join('<br>')||'Noch keine Punkte gespeichert.';
+requestAnimationFrame(updatePixelScrollbar);
+return;
+}
+const users=readJson(localAuthKey(),{});
+const rows=Object.entries(users).map(([username,u])=>({username,bestScore:u.bestScore||0})).sort((a,b)=>b.bestScore-a.bestScore).slice(0,10);
+leaderboardList.innerHTML=rows.map((r,i)=>`${i+1}. ${r.username}: ${r.bestScore} Punkte`).join('<br>')||'Noch keine Punkte gespeichert.';
+}
+requestAnimationFrame(updatePixelScrollbar);
+}
+
+function updateSaveButtons(){
+continueButton.disabled=!hasSave('autosave');
+saveSlot1Button.textContent=hasSave('slot1')?'Slot 1 laden':'Slot 1 leer';
+saveSlot2Button.textContent=hasSave('slot2')?'Slot 2 laden':'Slot 2 leer';
+saveSlot3Button.textContent=hasSave('slot3')?'Slot 3 laden':'Slot 3 leer';
+saveCurrentButton.disabled=!gameStarted;
+requestAnimationFrame(updatePixelScrollbar);
+}
+
+function autoSave(){if(gameStarted&&Date.now()-lastAutoSave>2500){saveGame('autosave',true);lastAutoSave=Date.now()}}
+async function clearSaves(){
+['autosave','slot1','slot2','slot3'].forEach(remS);
+if(authSession?.local){
+const db=await withSqlite();
+if(db){db.run('DELETE FROM saves WHERE username = ?', [authSession.username]);saveSqlite()}
+}
+updateSaveButtons();
+menuInfo.textContent='Alle Spielstände gelöscht.';
+}
+function summary(){const p=['autosave','slot1','slot2','slot3'].filter(hasSave).map(slotLabel);return p.length?'Vorhanden: '+p.join(', '):'Noch keine Spielstände vorhanden.'}
+
+function updateStats(){
+updateWorldUnlocks();
+const done=chapters.filter(c=>c.done).length;
+scoreHud.textContent=score;
+foundHud.textContent=`${done} / ${chapters.length}`;
+pagesHud.textContent=`${collectedPages()} / ${pages.length}`;
+zonesHud.textContent=`${unlockedZones()} / ${zones.length}`;
+livesHud.textContent=lives;
+taskHud.textContent=!gameStarted?'Start':done===chapters.length?'Finale':collectedPages()<pages.length?'Welt erkunden':'Kapitel lösen';
+quickSaveButton.classList.toggle('active',gameStarted&&!menuOpen&&!locked);
+updateSaveButtons();
+if(done===chapters.length&&gameStarted){
+winText.textContent=`Du hast ${score} Punkte gesammelt, ${collectedPages()} Archivseiten gefunden, alle Zonen erkundet und alle 24 Fragen gelöst.`;
+winEl.classList.add('active');
+locked=true;
+if(!winSoundPlayed){
+sfx('win');
+winSoundPlayed=true;
+}
+saveGame('autosave',true);
+}
+}
+
+function nearest(arr,range=58){
+let best=null,dist=1e9;
+for(const o of arr){
+const d=Math.hypot(player.x+11-(o.x+16),player.y+13-(o.y+16));
+if(d<dist){best=o;dist=d}
+}
+return dist<range?best:null;
+}
+
+function jump(){
+const now=Date.now();
+if(locked||player.jumping||now-lastJump<180)return;
+lastJump=now;
+player.jumping=true;
+player.jumpV=inAny(pbox(),ramps)?8.4:6.1;
+sfx('jump');
+}
+
+function hurt(){
+if(fallCooldown)return;
+fallCooldown=70;
+sfx('hurt');
+lives--;
+score=Math.max(0,score-25);
+player.x=spawn.x;player.y=spawn.y;
+player.jumpZ=0;player.jumpV=0;player.jumping=false;
+if(lives<=0)restartGame();
+updateStats();
+saveGame('autosave',true);
+}
+
+function playLearningCutscene(c,onEnd){
+activeCutscene=learningScenes[c.id]||[];
+cutsceneIndex=0;
+afterCutscene=onEnd;
+locked=true;
+dialog.classList.remove('active');
+cutscene.classList.add('active');
+sfx('cut');
+renderCutscene();
+}
+
+function renderCutscene(){
+const s=activeCutscene?.[cutsceneIndex];
+if(!s){finishCutscene();return}
+cutTitle.textContent=s.title;
+cutBody.textContent=s.body;
+speechNoise(s.body,'cutscene');
+factGrid.innerHTML=(s.facts||[]).map(([a,b])=>`<div class="fact-card"><strong>${a}</strong>${b}</div>`).join('');
+sceneArt.innerHTML=makeSceneArt(s.art);
+}
+
+function finishCutscene(){
+cutscene.classList.remove('active');
+activeCutscene=null;
+const cb=afterCutscene;
+afterCutscene=null;
+locked=false;
+if(cb)cb();
+saveGame('autosave',true);
+}
+
+function nextCutscene(){if(!activeCutscene)return;cutsceneIndex++;if(cutsceneIndex>=activeCutscene.length)finishCutscene();else renderCutscene()}
+
+function makeSceneArt(type){
+const px=(x,y,w,h,c,cls='')=>`<div class="pixel-shape ${cls}" style="left:${x}%;top:${y}%;width:${w}%;height:${h}%;background:${c}"></div>`;
+let h='';
+for(let i=0;i<24;i++)h+=px((i*37)%96,(i*19)%70,.8,.8,'#fff4cf',i%3===0?'blink':'');
+h+=px(0,72,100,28,'#242436');
+if(type==='workshop')h+=px(12,55,76,10,'#6b4b35')+px(24,30,18,18,'#77778a','pulse')+px(54,22,10,10,'#f0bd81')+px(52,32,16,20,'#5cf2c0','float')+px(70,36,10,12,'#999','pulse');
+else if(type==='tv')h+=px(26,22,48,34,'#77778a','pulse')+px(31,27,38,22,'#151521')+px(36,34,28,8,'#5cf2c0','blink')+px(42,30,12,3,'#ffcf5c','slide');
+else if(type==='pong')h+=px(20,24,7,38,'#fff4cf')+px(74,34,7,38,'#fff4cf')+px(48,42,5,7,'#5cf2c0','slide')+px(50,14,1,55,'rgba(255,255,255,.3)');
+else if(type==='factory')h+=px(8,48,84,10,'#66667a')+px(16,28,8,26,'#a98355')+px(34,34,12,14,'#ffcf5c','pulse')+px(58,30,20,20,'#69a7ff','pulse')+px(80,18,8,42,'#777');
+else if(type==='code')h+=px(12,18,76,50,'#101018')+px(18,27,24,4,'#5cf2c0','slide')+px(18,38,38,4,'#ffcf5c','slide')+px(18,49,46,4,'#69a7ff','slide')+px(74,26,8,8,'#5cf2c0','pulse');
+else if(type==='school')h+=px(20,18,60,34,'#2f5f38')+px(25,26,20,5,'#fff4cf','blink')+px(25,38,36,5,'#ffcf5c','blink')+px(34,64,34,10,'#a98355');
+else if(type==='book')h+=px(25,24,24,42,'#fff4cf','float')+px(51,24,24,42,'#e6dbb8','float')+px(49,23,2,45,'#6b4b35')+px(30,36,14,3,'#333','blink');
+else if(type==='city')h+=px(14,34,12,38,'#596070','slide')+px(33,24,16,48,'#77778a','slide')+px(56,36,13,36,'#555568','slide')+px(75,26,10,46,'#66667a','slide')+px(0,18,100,5,'#69a7ff','slide');
+else if(type==='crowd'){for(let i=0;i<14;i++)h+=px(6+i*6,42+(i%3)*6,5,18,['#5cf2c0','#ffcf5c','#69a7ff','#d58cff','#ff8e7a'][i%5],i%2?'float':'pulse')}
+return h;
+}
+
+function showQuiz(c){
+ensureAudio();
+if(collectedPages()<c.need){
+sfx('talk');
+locked=true;
+dialog.classList.add('active');
+dialogTitle.textContent=c.name+' ist gesperrt';
+dialogText.textContent=`Du brauchst ${c.need} Archivseiten. Du hast ${collectedPages()}. Erkunde die große Welt, sprich mit NPCs und sammle Schriftrollen.`;
+speechNoise(dialogText.textContent,'warning');
+answersEl.innerHTML='';
+const b=document.createElement('button');
+b.textContent='Weiter erkunden';
+b.onclick=closeDialog;
+answersEl.appendChild(b);
+return;
+}
+if(!c.cutSeen){
+c.cutSeen=true;
+playLearningCutscene(c,()=>{activeChapter=c;activeQuestionIndex=0;showQuestion()});
+return;
+}
+activeChapter=c;
+activeQuestionIndex=0;
+sfx('talk');
+showQuestion();
+}
+
+function shuffleArray(arr){
+const copy=[...arr];
+for(let i=copy.length-1;i>0;i--){
+const j=Math.floor(Math.random()*(i+1));
+[copy[i],copy[j]]=[copy[j],copy[i]];
+}
+return copy;
+}
+
+function nextCorrectSlot(answerCount){
+if(correctSlotBag.length===0)correctSlotBag=shuffleArray([...Array(answerCount).keys()]);
+return correctSlotBag.pop();
+}
+
+function shuffledAnswers(q){
+const correct={text:q[1][q[2]],index:q[2],isCorrect:true};
+const wrong=q[1].map((text,index)=>({text,index,isCorrect:false})).filter(a=>a.index!==q[2]);
+const result=new Array(q[1].length);
+const correctSlot=nextCorrectSlot(q[1].length);
+result[correctSlot]=correct;
+const mixedWrong=shuffleArray(wrong);
+let w=0;
+for(let i=0;i<result.length;i++)if(!result[i])result[i]=mixedWrong[w++];
+return result;
+}
+
+function showQuestion(){
+const c=activeChapter,q=c.qs[activeQuestionIndex];
+locked=true;
+dialog.classList.add('active');
+dialogTitle.textContent=`${c.name} · Frage ${activeQuestionIndex+1} / ${c.qs.length}`;
+dialogText.textContent=q[0];
+speechNoise(q[0],'quiz');
+answersEl.innerHTML='';
+shuffledAnswers(q).forEach((answer,displayIndex)=>{
+const b=document.createElement('button');
+b.textContent=`${String.fromCharCode(65+displayIndex)}: ${answer.text}`;
+b.onclick=()=>{
+if(answer.isCorrect){
+sfx('correct');
+score+=50;
+activeQuestionIndex++;
+if(activeQuestionIndex>=c.qs.length){
+c.done=true;
+dialogTitle.textContent='Kapitel abgeschlossen!';
+dialogText.textContent=`Der Wissens-Chip „${c.name}“ ist aktiv. In der Welt können neue Seiten erscheinen.`;
+speechNoise(dialogText.textContent,'success');
+answersEl.innerHTML='';
+const w=document.createElement('button');
+w.textContent='Weiter erkunden';
+w.onclick=()=>{closeDialog();saveGame('autosave',true)};
+answersEl.appendChild(w);
+}else{
+dialogText.textContent='Richtig! Nächste Frage wird geladen…';
+speechNoise(dialogText.textContent,'success');
+answersEl.innerHTML='';
+const n=document.createElement('button');
+n.textContent='Nächste Frage';
+n.onclick=showQuestion;
+answersEl.appendChild(n);
+}
+}else{
+sfx('wrong');
+score=Math.max(0,score-15);
+dialogText.textContent='Fast! Die Antworten werden neu gemischt. Lies genau und versuche es erneut.';
+speechNoise(dialogText.textContent,'warning');
+answersEl.innerHTML='';
+const retry=document.createElement('button');
+retry.textContent='Nochmal versuchen';
+retry.onclick=showQuestion;
+answersEl.appendChild(retry);
+}
+updateStats();
+};
+answersEl.appendChild(b);
+});
+}
+
+function showNPC(n){
+locked=true;
+dialog.classList.add('active');
+dialogTitle.textContent=n.name;
+dialogText.textContent=n.msg;
+speechNoise(n.msg,n.name.includes('Kuratorin')?'curator':'npc');
+answersEl.innerHTML='';
+const b=document.createElement('button');
+b.textContent='Danke';
+b.onclick=closeDialog;
+answersEl.appendChild(b);
+}
+
+function closeDialog(){dialog.classList.remove('active');locked=false}
+function startIntro(){ensureAudio();sfx('start');gameStarted=true;menuOpen=false;locked=false;startScreen.classList.add('hidden');saveGame('autosave',true)}
+
+function restartGame(){
+sfx('start');
+score=0;lives=5;gameStarted=false;winSoundPlayed=false;
+player.x=spawn.x;player.y=spawn.y;player.jumpZ=0;player.jumpV=0;player.jumping=false;
+weather='Sonne';
+chapters.forEach(c=>{c.done=false;c.cutSeen=false});
+pages.forEach((p,i)=>{p.got=false;p.visible=i<8});
+glitches.forEach(g=>{g.defeated=false});
+locked=true;menuOpen=true;
+winEl.classList.remove('active');
+dialog.classList.remove('active');
+cutscene.classList.remove('active');
+startScreen.classList.remove('hidden');
+menuInfo.textContent='Neues Spiel bereit: riesige Karte, Tore, NPCs, Wetter, Minimap, Lerncutscenes, besiegbare Gegner und genug Archivseiten.';
+updateStats();
+requestAnimationFrame(updatePixelScrollbar);
+}
+window.restartGame=restartGame;
+
+function cameraPixelX(){return Math.round(cam.x)}
+function cameraPixelY(){return Math.round(cam.y)}
+function sx(x){return Math.round(x-cameraPixelX())}
+function sy(y){return Math.round(y-cameraPixelY())}
+
+function drawText(t,x,y,c='#fff4cf'){
+ctx.fillStyle='rgba(0,0,0,.72)';
+ctx.fillRect(sx(x)-4,sy(y)-13,t.length*7+8,16);
+ctx.fillStyle=c;
+ctx.font='12px Courier New';
+ctx.fillText(t,sx(x),sy(y));
+}
+
+function drawWorld(){
+const startX=Math.floor(cam.x/32)*32;
+const startY=Math.floor(cam.y/32)*32;
+for(let y=startY;y<cam.y+VIEW_H+32;y+=32){
+for(let x=startX;x<cam.x+VIEW_W+32;x+=32){
+const z=zones.find(q=>x>=q.x&&x<q.x+q.w&&y>=q.y&&y<q.y+q.h);
+const a=z?['#326438','#3a7040','#384878','#3d5b6b','#51436b'][zones.indexOf(z)]:'#223024';
+ctx.fillStyle=((x/32+y/32)%2===0)?a:'#2d3d30';
+ctx.fillRect(sx(x),sy(y),32,32);
+ctx.fillStyle='rgba(0,0,0,.08)';
+ctx.fillRect(sx(x),sy(y+28),32,4);
+}}
+ctx.fillStyle='#a98355';
+for(const z of zones){
+ctx.fillRect(sx(z.x+40),sy(z.y+z.h/2-16),z.w-80,32);
+ctx.fillRect(sx(z.x+z.w/2-16),sy(z.y+40),32,z.h-80);
+}
+for(const z of zones){
+if(!isZoneUnlocked(z)){
+ctx.fillStyle='rgba(5,5,9,.55)';
+ctx.fillRect(sx(z.x),sy(z.y),z.w,z.h);
+ctx.strokeStyle='#ff4d6d';
+ctx.strokeRect(sx(z.x+3),sy(z.y+3),z.w-6,z.h-6);
+}}
+for(const r of ravines){ctx.fillStyle='#070711';ctx.fillRect(sx(r.x),sy(r.y),r.w,r.h);ctx.strokeStyle='#000';ctx.strokeRect(sx(r.x),sy(r.y),r.w,r.h)}
+for(const rp of ramps){ctx.fillStyle='#c9853c';ctx.fillRect(sx(rp.x),sy(rp.y),rp.w,rp.h);ctx.strokeStyle='#5d351b';ctx.strokeRect(sx(rp.x),sy(rp.y),rp.w,rp.h)}
+for(const o of obstacles){ctx.fillStyle='#57576d';ctx.fillRect(sx(o.x),sy(o.y),o.w,o.h)}
+for(const g of gates){
+ctx.fillStyle=collectedPages()>=g.need?'rgba(92,242,192,.22)':'#4b2436';
+ctx.fillRect(sx(g.x),sy(g.y),g.w,g.h);
+ctx.strokeStyle=collectedPages()>=g.need?'#5cf2c0':'#ff4d6d';
+ctx.strokeRect(sx(g.x),sy(g.y),g.w,g.h);
+if(collectedPages()<g.need)drawText(g.need+' Seiten',g.x-14,g.y-8,'#ffcf5c');
+}
+for(const z of zones){
+ctx.fillStyle='rgba(0,0,0,.6)';
+ctx.fillRect(sx(z.x+12),sy(z.y+12),z.name.length*8+70,18);
+ctx.fillStyle=isZoneUnlocked(z)?'#5cf2c0':'#ffcf5c';
+ctx.font='12px Courier New';
+ctx.fillText(isZoneUnlocked(z)?z.name:`${z.name} (${z.need}${z.needChapter?'+Quiz':''})`,sx(z.x+18),sy(z.y+26));
+}
+}
+
+function drawPages(){
+for(const p of pages){
+if(p.got||!p.visible)continue;
+const bob=Math.sin(time/18+p.x)*2;
+ctx.fillStyle='#ffcf5c';
+ctx.fillRect(sx(p.x),sy(p.y+bob),14,18);
+ctx.fillStyle='#050509';
+ctx.fillRect(sx(p.x+3),sy(p.y+4+bob),8,2);
+ctx.fillRect(sx(p.x+3),sy(p.y+9+bob),8,2);
+ctx.strokeStyle='#fff4cf';
+ctx.strokeRect(sx(p.x-1),sy(p.y-1+bob),16,20);
+}
+}
+
+function drawChapters(){
+for(const c of chapters){
+ctx.fillStyle=c.done?'#3b3b4e':c.color;
+ctx.fillRect(sx(c.x),sy(c.y),32,28);
+ctx.fillStyle='#111';
+ctx.fillRect(sx(c.x+7),sy(c.y+6),18,12);
+ctx.fillStyle=collectedPages()>=c.need?'#fff4cf':'#777';
+ctx.font='10px Courier New';
+ctx.fillText(c.label,sx(c.x-5),sy(c.y-12));
+if(collectedPages()<c.need){
+ctx.fillStyle='#111';ctx.fillRect(sx(c.x+11),sy(c.y-2),10,8);
+ctx.fillStyle='#ffcf5c';ctx.fillRect(sx(c.x+13),sy(c.y-7),6,7);
+}}
+const n=nearest(chapters);
+if(n&&!locked)drawText('E: '+n.name+(n.done?' ✓':''),n.x-20,n.y-28,'#ffcf5c');
+}
+
+function drawNPCs(){
+for(const n of npcs){
+const bob=Math.sin(time/25+n.x)*2;
+const wave=Math.floor(time/18+n.x)%2;
+ctx.fillStyle='rgba(0,0,0,.25)';
+ctx.fillRect(sx(n.x+2),sy(n.y+28),22,5);
+ctx.fillStyle='#f0bd81';ctx.fillRect(sx(n.x+5),sy(n.y+8+bob),12,10);
+ctx.fillStyle='#69a7ff';ctx.fillRect(sx(n.x+3),sy(n.y+18+bob),16,13);
+ctx.fillStyle='#111';ctx.fillRect(sx(n.x+4),sy(n.y+2+bob),14,8);
+ctx.fillStyle='#f0bd81';
+ctx.fillRect(sx(n.x-1),sy(n.y+19+bob+wave*2),4,8);
+ctx.fillRect(sx(n.x+20),sy(n.y+19+bob+(1-wave)*2),4,8);
+ctx.fillStyle='#ffcf5c';
+ctx.fillRect(sx(n.x+9),sy(n.y-8+bob),6,6);
+}
+const n=nearest(npcs,52);
+if(n&&!locked)drawText('E: '+n.name,n.x-20,n.y-20,'#5cf2c0');
+}
+
+function drawGlitches(){
+for(const g of glitches){
+if(g.defeated)continue;
+const flicker=(time+Math.floor(g.x))%10<5;
+const pulse=Math.sin(time/8+g.t)*3;
+ctx.fillStyle='rgba(255,77,109,.25)';
+ctx.fillRect(sx(g.x-4-pulse/2),sy(g.y-4-pulse/2),g.w+8+pulse,g.h+8+pulse);
+ctx.fillStyle=flicker?'#ff4d6d':'#ff7a91';
+ctx.fillRect(sx(g.x),sy(g.y),g.w,g.h);
+ctx.fillStyle='#050509';
+ctx.fillRect(sx(g.x+5),sy(g.y+7),4,4);
+ctx.fillRect(sx(g.x+15),sy(g.y+7),4,4);
+ctx.fillStyle='#fff4cf';
+ctx.fillRect(sx(g.x+4),sy(g.y+17),16,3);
+ctx.fillStyle='#5cf2c0';
+ctx.fillRect(sx(g.x+2),sy(g.y+2),4,3);
+ctx.fillRect(sx(g.x+18),sy(g.y+21),4,3);
+}
+}
+
+function drawPlayer(){
+const x=sx(player.x),baseY=sy(player.y),y=sy(player.y-player.jumpZ);
+const step=player.moving?[-2,0,2,0][player.animFrame]:Math.sin(player.idleTick/28)*1.2;
+const arm=player.moving?[2,-1,-2,1][player.animFrame]:0;
+const legA=player.jumping?-3:step;
+const legB=player.jumping?3:-step;
+ctx.fillStyle='rgba(0,0,0,.25)';
+ctx.fillRect(x+2,baseY+23,22,7);
+ctx.fillStyle='#2a5a95';
+ctx.fillRect(x+5,y+30+legA,5,8);
+ctx.fillRect(x+14,y+30+legB,5,8);
+ctx.fillStyle='#f0bd81';
+ctx.fillRect(x+1,y+20+arm,4,8);
+ctx.fillRect(x+20,y+20-arm,4,8);
+ctx.fillStyle=player.jumping?'#ffcf5c':player.moving?'#5cf2c0':'#4dd4aa';
+ctx.fillRect(x+4,y+18,16,12);
+ctx.fillStyle='#f0bd81';
+ctx.fillRect(x+6,y+8,12,10);
+ctx.fillStyle='#15151f';
+ctx.fillRect(x+5,y+2,14,8);
+ctx.fillStyle='#050509';
+if(player.dir==='left'){ctx.fillRect(x+7,y+12,2,2);ctx.fillRect(x+11,y+12,2,2)}
+else if(player.dir==='right'){ctx.fillRect(x+13,y+12,2,2);ctx.fillRect(x+17,y+12,2,2)}
+else if(player.dir==='up'){ctx.fillRect(x+8,y+10,8,2)}
+else{ctx.fillRect(x+8,y+12,2,2);ctx.fillRect(x+16,y+12,2,2)}
+ctx.fillStyle='#fff4cf';
+if(player.jumping)ctx.fillRect(x+9,y-3,8,3);
+}
+
+function drawWeather(){
+if(weather==='Regen'){
+ctx.fillStyle='rgba(105,167,255,.55)';
+for(const p of particles)ctx.fillRect(sx(p.x),sy(p.y),2,8);
+}else if(weather==='Staub'){
+ctx.fillStyle='rgba(255,207,92,.35)';
+for(const p of particles)ctx.fillRect(sx(p.x),sy(p.y),3,3);
+}
+ctx.fillStyle='rgba(0,0,0,.58)';
+ctx.fillRect(498,336,130,132);
+ctx.strokeStyle='#fff4cf';
+ctx.strokeRect(498,336,130,132);
+ctx.fillStyle='#5cf2c0';
+for(const z of zones)ctx.fillRect(500+z.x/WORLD_W*126,338+z.y/WORLD_H*128,Math.max(4,z.w/WORLD_W*126),Math.max(4,z.h/WORLD_H*128));
+ctx.fillStyle='#ffcf5c';
+ctx.fillRect(500+player.x/WORLD_W*126,338+player.y/WORLD_H*128,4,4);
+ctx.fillStyle='#fff4cf';
+ctx.font='10px Courier New';
+ctx.fillText(weather,504,462);
+}
+
+function drawPopups(){
+for(const p of popups){
+ctx.globalAlpha=Math.max(0,p.life/70);
+ctx.fillStyle='rgba(0,0,0,.65)';
+ctx.fillRect(sx(p.x)-6,sy(p.y)-18,p.text.length*8+12,16);
+ctx.fillStyle=p.color;
+ctx.font='12px Courier New';
+ctx.fillText(p.text,sx(p.x),sy(p.y)-6);
+ctx.globalAlpha=1;
+}
+}
+
+function draw(){
+drawWorld();
+drawPages();
+drawChapters();
+drawNPCs();
+drawGlitches();
+drawPlayer();
+drawPopups();
+drawWeather();
+ctx.fillStyle='rgba(0,0,0,.62)';
+ctx.fillRect(10,438,560,30);
+ctx.fillStyle='#fff4cf';
+ctx.font='14px Courier New';
+ctx.fillText('Große Welt: Kamera folgt dir · E interagieren · Space springen',20,459);
+}
+
+function updateCamera(){
+const targetX=Math.max(0,Math.min(WORLD_W-VIEW_W,player.x+player.w/2-VIEW_W/2));
+const targetY=Math.max(0,Math.min(WORLD_H-VIEW_H,player.y+player.h/2-VIEW_H/2));
+const dx=targetX-cam.x;
+const dy=targetY-cam.y;
+cam.x+=dx*0.18;
+cam.y+=dy*0.18;
+if(Math.abs(dx)<0.01)cam.x=targetX;
+if(Math.abs(dy)<0.01)cam.y=targetY;
+}
+
+function update(){
+time++;
+audioWidget.classList.toggle('active',gameStarted);
+weatherTimer++;
+if(weatherTimer>1200){weatherTimer=0;weather=weather==='Sonne'?'Regen':weather==='Regen'?'Staub':'Sonne'}
+if(fallCooldown)fallCooldown--;
+
+for(const p of particles){
+p.y+=p.v*(weather==='Regen'?8:2);
+p.x+=(weather==='Staub'?0.5:0);
+if(p.y>WORLD_H)p.y=0;
+if(p.x>WORLD_W)p.x=0;
+}
+
+for(const g of glitches){
+if(g.defeated)continue;
+g.t+=g.spd*8;
+g.x=g.baseX+Math.sin(g.t)*g.range;
+}
+
+if(player.jumping){
+player.jumpZ+=player.jumpV;
+player.jumpV-=.42;
+if(player.jumpZ<=0){player.jumpZ=0;player.jumpV=0;player.jumping=false}
+}
+
+if(!locked){
+let dx=0,dy=0;
+if(keys.has('arrowleft')||keys.has('a'))dx-=player.speed;
+if(keys.has('arrowright')||keys.has('d'))dx+=player.speed;
+if(keys.has('arrowup')||keys.has('w'))dy-=player.speed;
+if(keys.has('arrowdown')||keys.has('s'))dy+=player.speed;
+if(dx&&dy){dx*=.707;dy*=.707}
+
+player.moving=!!(dx||dy);
+if(dx<0)player.dir='left';
+if(dx>0)player.dir='right';
+if(dy<0&&Math.abs(dy)>=Math.abs(dx))player.dir='up';
+if(dy>0&&Math.abs(dy)>=Math.abs(dx))player.dir='down';
+
+if(player.moving){
+player.animTick++;
+if(player.animTick>=7){player.animTick=0;player.animFrame=(player.animFrame+1)%4}
+}else{
+player.animTick=0;
+player.animFrame=0;
+player.idleTick++;
+}
+
+if(!solidAt(player.x+dx,player.y))player.x+=dx;
+if(!solidAt(player.x,player.y+dy))player.y+=dy;
+
+player.x=Math.max(30,Math.min(WORLD_W-60,player.x));
+player.y=Math.max(30,Math.min(WORLD_H-60,player.y));
+
+for(const p of pages){
+if(!p.got&&p.visible&&overlap(pbox(),{x:p.x-4,y:p.y-4,w:22,h:26})){
+p.got=true;
+score+=20;
+sfx('page');
+popups.push({x:p.x,y:p.y,text:'+ Archiv',life:70,color:'#ffcf5c'});
+saveGame('autosave',true);
+}
+}
+
+if(inAny(pbox(),ravines)&&player.jumpZ<20)hurt();
+
+for(const g of glitches){
+if(g.defeated)continue;
+if(overlap(pbox(),g)){
+if(player.jumpZ>=15){
+g.defeated=true;
+score+=75;
+sfx('glitch');
+popups.push({x:g.x,y:g.y,text:'+ Glitch besiegt',life:80,color:'#5cf2c0'});
+player.jumpV=5.5;
+saveGame('autosave',true);
+}else{
+hurt();
+}
+}
+}
+}
+
+for(let i=popups.length-1;i>=0;i--){
+popups[i].life--;
+popups[i].y-=0.35;
+if(popups[i].life<=0)popups.splice(i,1);
+}
+
+updateCamera();
+autoSave();
+updateStats();
+}
+
+function loop(){update();draw();requestAnimationFrame(loop)}
+
+function interact(){
+if(activeCutscene){nextCutscene();return}
+const c=nearest(chapters);
+if(c&&!locked){showQuiz(c);return}
+const n=nearest(npcs,52);
+if(n&&!locked)showNPC(n);
+}
+
+function toggleMenu(){
+if(activeCutscene)return;
+if(dialog.classList.contains('active')){closeDialog();return}
+if(menuOpen){
+if(gameStarted){startScreen.classList.add('hidden');locked=false;menuOpen=false}
+}else{
+startScreen.classList.remove('hidden');
+locked=true;
+menuOpen=true;
+requestAnimationFrame(updatePixelScrollbar);
+}
+}
+
+function bind(btn,key){
+const down=e=>{e.preventDefault();btn.classList.add('active');keys.add(key)};
+const up=e=>{e.preventDefault();btn.classList.remove('active');keys.delete(key)};
+btn.addEventListener('pointerdown',down);
+btn.addEventListener('pointerup',up);
+btn.addEventListener('pointercancel',up);
+btn.addEventListener('pointerleave',up);
+}
+
+function setupIcon(){
+menuIcon.src=ICON_URL;
+menuIcon.onerror=()=>{menuIcon.style.display='none';menuIconFallback.classList.add('active')};
+}
+
+function runSmokeTests(){
+console.assert(WORLD_W>VIEW_W&&WORLD_H>VIEW_H,'large scrolling world exists');
+console.assert(typeof updateCamera==='function','smooth camera updater exists');
+console.assert(zones.length===5,'5 zones');
+console.assert(gates.length>=4,'world gates exist');
+console.assert(zones.every(z=>z.id==='lobby'||z.needChapter),'locked zones require quiz progress');
+console.assert(typeof solidAt==='function'&&typeof zoneAt==='function','zone collision helpers exist');
+console.assert(npcs.length>=5,'interactive NPCs exist');
+console.assert(pages.length>=30,'enough archive pages for all zones');
+console.assert(pages.every(p=>zoneAt(p.x,p.y)),'all archive pages are placed inside zones');
+console.assert(Object.keys(learningScenes).length===8,'learning cutscenes exist');
+console.assert(typeof shuffledAnswers==='function','answer shuffler exists');
+console.assert(typeof nextCorrectSlot==='function','fair correct-slot selector exists');
+console.assert(chapters.every(c=>learningScenes[c.id]&&learningScenes[c.id].length>=1),'every chapter has a cutscene');
+console.assert(shuffledAnswers(chapters[0].qs[0]).some(a=>a.isCorrect),'shuffled answers keep correct flag');
+const testSlots=[nextCorrectSlot(3),nextCorrectSlot(3),nextCorrectSlot(3)];
+console.assert(new Set(testSlots).size===3,'correct answer positions cycle through A/B/C');
+console.assert(glitches.every(g=>g.spd<=.005),'slow enemies');
+console.assert(glitches.every(g=>'defeated' in g),'glitches can be defeated and saved');
+console.assert('animFrame' in player&&'dir' in player,'player animation state exists');
+console.assert(Array.isArray(popups),'collection popups exist');
+console.assert(getComputedStyle(fakeScrollbar).width==='34px','thick square scrollbar');
+console.assert(!CREDITS_HTML.includes('ChatGPT'),'credits do not mention ChatGPT');
+console.assert(quickSaveButton instanceof HTMLButtonElement,'in-game quick save button exists');
+console.assert(ICON_URL==='./icon.png','local icon is integrated');
+console.assert(menuIcon instanceof HTMLImageElement,'menu icon image exists');
+}
+runSmokeTests();
+
+registerButton.onclick=e=>{e.preventDefault();registerStudent()};
+loginButton.onclick=e=>{e.preventDefault();loginStudent()};
+syncButton.onclick=e=>{e.preventDefault();syncNow()};
+leaderboardButton.onclick=e=>{e.preventDefault();loadLeaderboard()};
+logoutButton.onclick=e=>{e.preventDefault();logoutStudent()};
+startButton.onclick=e=>{e.preventDefault();startIntro()};
+continueButton.onclick=e=>{e.preventDefault();loadGame('autosave')};
+saveSlot1Button.onclick=e=>{e.preventDefault();hasSave('slot1')?loadGame('slot1'):saveGame('slot1')};
+saveSlot2Button.onclick=e=>{e.preventDefault();hasSave('slot2')?loadGame('slot2'):saveGame('slot2')};
+saveSlot3Button.onclick=e=>{e.preventDefault();hasSave('slot3')?loadGame('slot3'):saveGame('slot3')};
+saveCurrentButton.onclick=e=>{e.preventDefault();saveGame(currentSlot==='autosave'?'slot1':currentSlot)};
+quickSaveButton.onclick=e=>{e.preventDefault();saveGame('autosave');menuInfo.textContent='Aktueller Spielstand gespeichert.'};
+clearSavesButton.onclick=e=>{e.preventDefault();clearSaves()};
+researchButton.onclick=e=>{e.preventDefault();window.open(RESEARCH_URL,'_blank','noopener,noreferrer');menuInfo.textContent='Recherche-Dokument wurde geöffnet.';requestAnimationFrame(updatePixelScrollbar)};
+githubButton.onclick=e=>{e.preventDefault();window.open('https://github.com/r4k5O/diffspiel202652','_blank','noopener,noreferrer');menuInfo.textContent='GitHub-Repository wurde geöffnet.';requestAnimationFrame(updatePixelScrollbar)};
+restartButton.onclick=e=>{e.preventDefault();restartGame()};
+controlsButton.onclick=e=>{e.preventDefault();menuInfo.innerHTML='Steuerung:<br>WASD/Pfeile = laufen<br>E = Kapitel/NPC öffnen<br>Space/JUMP = springen<br>ESC/Menü = Pause<br>Vor jedem Kapitel startet eine Lerncutscene.';requestAnimationFrame(updatePixelScrollbar)};
+creditsButton.onclick=e=>{e.preventDefault();menuInfo.innerHTML=CREDITS_HTML;requestAnimationFrame(updatePixelScrollbar)};
+soundButton.onclick=e=>{e.preventDefault();toggleSound()};
+speakerButton.onclick=e=>{e.preventDefault();ensureAudio();audioWidget.classList.toggle('open')};
+dialogVolumeInput.oninput=e=>setDialogVolume(e.target.value);
+dialogVolumeInput.onchange=()=>sfx('talk');
+muteGameButton.onclick=e=>{e.preventDefault();toggleSound()};
+document.querySelectorAll('button,summary').forEach(el=>el.addEventListener('pointerdown',()=>{ensureAudio();sfx('menu')},{passive:true}));
+
+document.querySelectorAll('.dpad .touch-btn[data-key]').forEach(b=>bind(b,b.dataset.key));
+touchInteract.onpointerdown=e=>{e.preventDefault();interact()};
+touchJump.onpointerdown=e=>{e.preventDefault();jump()};
+touchMenu.onpointerdown=e=>{e.preventDefault();toggleMenu()};
+cutscene.addEventListener('click',nextCutscene);
+
+window.addEventListener('keydown',e=>{
+ensureAudio();
+const k=e.key.toLowerCase();
+keys.add(k);
+if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k))e.preventDefault();
+if(k==='e')interact();
+if((k===' '||k==='enter')&&!e.repeat&&activeCutscene)nextCutscene();
+else if(k===' '&&!e.repeat)jump();
+if(k==='escape')toggleMenu();
+});
+window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
+
+setupIcon();
+updateAudioControls();
+if(authSession?.username)studentNameInput.value=authSession.username;
+refreshAuthUi();
+updateSaveButtons();
+menuInfo.textContent=summary();
+updateStats();
+requestAnimationFrame(updatePixelScrollbar);
+loop();
+
+})();
+</script>
+</body>
+</html>
