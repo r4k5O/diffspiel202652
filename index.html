@@ -295,7 +295,8 @@ let authSession=readJson(SAVE_PREFIX+'authSession',null);
 let syncBusy=false;
 let sqliteDb=null;
 const sqliteReady=initSqlite();
-let audioCtx=null,masterGain=null,musicGain=null,dialogGain=null,musicTimer=null,musicStep=0,soundMuted=readJson(SAVE_PREFIX+'soundMuted',false),dialogVolume=readJson(SAVE_PREFIX+'dialogVolume',70);
+let audioCtx=null,masterGain=null,musicGain=null,dialogGain=null,musicTimer=null,musicStep=0,lastMenuSound=0,soundMuted=readJson(SAVE_PREFIX+'soundMuted',false),dialogVolume=readJson(SAVE_PREFIX+'dialogVolume',70);
+const activeSpeech=[],activeSfx=[];
 const keys=new Set();
 const spawn={x:120,y:1180};
 const player={x:spawn.x,y:spawn.y,w:22,h:26,speed:2.05,jumpZ:0,jumpV:0,jumping:false,moving:false,dir:'down',animTick:0,animFrame:0,idleTick:0};
@@ -463,7 +464,29 @@ if(audioCtx.state==='suspended')audioCtx.resume();
 startMusic();
 return audioCtx;
 }
-function tone(freq,dur=.08,type='square',vol=.35,when=0,targetGain=masterGain){
+function stopAudioGroup(group){
+while(group.length){
+const node=group.pop();
+try{node.stop()}catch{}
+try{node.disconnect()}catch{}
+}
+}
+function rememberAudioNode(group,node,stopAt){
+if(!group)return;
+group.push(node);
+const maxNodes=group===activeSpeech?240:20;
+while(group.length>maxNodes){
+const old=group.shift();
+try{old.stop()}catch{}
+try{old.disconnect()}catch{}
+}
+const delay=Math.max(0,(stopAt-audioCtx.currentTime)*1000+80);
+setTimeout(()=>{
+const index=group.indexOf(node);
+if(index>=0)group.splice(index,1);
+},delay);
+}
+function tone(freq,dur=.08,type='square',vol=.35,when=0,targetGain=masterGain,group=null){
 const ctx=ensureAudio();
 if(!ctx)return;
 const t=ctx.currentTime+when;
@@ -478,8 +501,9 @@ osc.connect(gain);
 gain.connect(targetGain||masterGain);
 osc.start(t);
 osc.stop(t+dur+.03);
+rememberAudioNode(group,osc,t+dur+.03);
 }
-function noise(dur=.12,vol=.22,when=0){
+function noise(dur=.12,vol=.22,when=0,group=null){
 const ctx=ensureAudio();
 if(!ctx)return;
 const len=Math.max(1,Math.floor(ctx.sampleRate*dur));
@@ -495,26 +519,33 @@ gain.gain.exponentialRampToValueAtTime(.001,t+dur);
 src.connect(gain);
 gain.connect(masterGain);
 src.start(t);
+src.stop(t+dur+.02);
+rememberAudioNode(group,src,t+dur+.02);
 }
 function sfx(name){
 if(soundMuted)return;
-if(name==='menu')tone(440,.045,'square',.12);
-else if(name==='start'){[392,523,659,784].forEach((n,i)=>tone(n,.08,'square',.22,i*.055))}
-else if(name==='jump'){tone(330,.06,'triangle',.18);tone(660,.08,'triangle',.14,.04)}
-else if(name==='page'){[880,1175,1568].forEach((n,i)=>tone(n,.07,'square',.2,i*.045))}
-else if(name==='glitch'){noise(.11,.16);tone(180,.12,'sawtooth',.14)}
-else if(name==='hurt'){noise(.16,.24);[220,155,110].forEach((n,i)=>tone(n,.09,'sawtooth',.18,i*.055))}
-else if(name==='correct'){[523,659,784].forEach((n,i)=>tone(n,.075,'square',.18,i*.06,dialogGain))}
-else if(name==='wrong'){[260,196].forEach((n,i)=>tone(n,.1,'triangle',.16,i*.07,dialogGain))}
-else if(name==='save')tone(988,.07,'square',.14);
-else if(name==='cut')tone(740,.08,'triangle',.11,0,dialogGain);
-else if(name==='talk'){tone(520,.035,'triangle',.08,0,dialogGain);tone(650,.035,'triangle',.06,.045,dialogGain)}
-else if(name==='win'){[392,523,659,784,1046].forEach((n,i)=>tone(n,.16,'square',.22,i*.09))}
+const now=performance.now();
+if(name==='menu'&&now-lastMenuSound<90)return;
+if(name==='menu')lastMenuSound=now;
+if(['start','hurt','win'].includes(name))stopAudioGroup(activeSfx);
+if(name==='menu')tone(440,.045,'square',.12,0,masterGain,activeSfx);
+else if(name==='start'){[392,523,659,784].forEach((n,i)=>tone(n,.08,'square',.22,i*.055,masterGain,activeSfx))}
+else if(name==='jump'){tone(330,.06,'triangle',.18,0,masterGain,activeSfx);tone(660,.08,'triangle',.14,.04,masterGain,activeSfx)}
+else if(name==='page'){[880,1175,1568].forEach((n,i)=>tone(n,.07,'square',.2,i*.045,masterGain,activeSfx))}
+else if(name==='glitch'){noise(.11,.16,0,activeSfx);tone(180,.12,'sawtooth',.14,0,masterGain,activeSfx)}
+else if(name==='hurt'){noise(.16,.24,0,activeSfx);[220,155,110].forEach((n,i)=>tone(n,.09,'sawtooth',.18,i*.055,masterGain,activeSfx))}
+else if(name==='correct'){stopAudioGroup(activeSpeech);[523,659,784].forEach((n,i)=>tone(n,.075,'square',.18,i*.06,dialogGain,activeSfx))}
+else if(name==='wrong'){stopAudioGroup(activeSpeech);[260,196].forEach((n,i)=>tone(n,.1,'triangle',.16,i*.07,dialogGain,activeSfx))}
+else if(name==='save')tone(988,.07,'square',.14,0,masterGain,activeSfx);
+else if(name==='cut')tone(740,.08,'triangle',.11,0,dialogGain,activeSfx);
+else if(name==='talk'){tone(520,.035,'triangle',.08,0,dialogGain,activeSfx);tone(650,.035,'triangle',.06,.045,dialogGain,activeSfx)}
+else if(name==='win'){stopAudioGroup(activeSpeech);[392,523,659,784,1046].forEach((n,i)=>tone(n,.16,'square',.22,i*.09,masterGain,activeSfx))}
 }
 function speechNoise(text='',voice='neutral'){
 if(soundMuted)return;
 const ctx=ensureAudio();
 if(!ctx)return;
+stopAudioGroup(activeSpeech);
 const clean=String(text).replace(/<[^>]*>/g,'').replace(/\s+/g,' ').trim();
 const tokens=clean.match(/[a-zA-ZäöüÄÖÜß]+|[.,!?;:…]/g)||['hm'];
 const profiles={
@@ -550,9 +581,9 @@ const freq=(p.base+contour)*Math.pow(2,(scale+octave*12)/12);
 const vowelBoost=vowels>s?.045:0;
 const dur=.07+Math.min(.075,lower.length*.006)+vowelBoost;
 const vol=.135+Math.min(.075,lower.length*.006)+(voice==='cutscene'?.025:0);
-tone(freq,dur,p.type,vol,when,dialogGain);
-if((wordHash+s)%3===0)tone(freq*1.5,.026,'triangle',vol*.32,when+.018,dialogGain);
-if((wordHash+s)%5===0)tone(freq*.5,.036,'triangle',vol*.28,when+.026,dialogGain);
+tone(freq,dur,p.type,vol,when,dialogGain,activeSpeech);
+if((wordHash+s)%3===0)tone(freq*1.5,.026,'triangle',vol*.32,when+.018,dialogGain,activeSpeech);
+if((wordHash+s)%5===0)tone(freq*.5,.036,'triangle',vol*.28,when+.026,dialogGain,activeSpeech);
 when+=p.rate+(s===syllables-1?.075:0);
 spoken++;
 }
