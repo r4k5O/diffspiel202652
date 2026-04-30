@@ -785,7 +785,7 @@ return storageStatus;
 }
 async function allowLocalFallback(){
 try{await storageStatusReady}catch{}
-return !storageStatus?.requiresServerStorage;
+return !storageStatus?.hasDatabase&&!storageStatus?.requiresServerStorage;
 }
 function serverStorageMessage(){
 return storageStatus?.message||'Auf Vercel ist keine persistente Datenbank verbunden.';
@@ -809,7 +809,8 @@ if(password===wordProtection){setSyncStatus('Passwort und Wortschutz müssen ver
 const deviceIdentifier=getDeviceId();
 try{
 const data=await apiJson('/api/register','POST',{username,password,wordProtection,deviceIdentifier});
-authSession={username,token:data.token||data.sessionToken||'api-session'};
+if(!data.token&&!data.sessionToken)throw new Error('missing_token');
+authSession={username,token:data.token||data.sessionToken};
 writeJson(SAVE_PREFIX+'authSession',authSession);
 setSyncStatus('Registriert. Spielstand wird geladen.');
 await syncNow();
@@ -840,7 +841,8 @@ const deviceIdentifier=getDeviceId();
 try{
 const data=await apiJson('/api/login','POST',{username,password,wordProtection,deviceIdentifier});
 if(data.requiresWordProtection){setSyncStatus('Dieses Gerät braucht den Wortschutz.');return}
-authSession={username,token:data.token||data.sessionToken||'api-session'};
+if(!data.token&&!data.sessionToken)throw new Error('missing_token');
+authSession={username,token:data.token||data.sessionToken};
 writeJson(SAVE_PREFIX+'authSession',authSession);
 setSyncStatus('Angemeldet. Spielstand wird geladen.');
 await syncNow();
