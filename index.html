@@ -62,6 +62,11 @@ canvas{display:block;background:#111;image-rendering:pixelated;touch-action:none
 .auth-actions button,.auth-panel .wide-button{padding:8px 10px}
 .sync-status,.leaderboard-list{min-height:22px;font-size:12px;line-height:1.35;color:var(--accent2);text-align:center}
 .leaderboard-list{color:var(--text);text-align:left}
+.compat-list{display:grid;gap:5px;font-size:12px;line-height:1.35}
+.compat-item{padding:6px;background:rgba(16,16,27,.72);border:2px solid #050509;color:var(--text)}
+.compat-item.ok{color:var(--accent)}
+.compat-item.warn{color:var(--accent2)}
+.compat-item.bad{color:var(--bad)}
 
 .hud{position:fixed;top:calc(10px + var(--safe-top));left:10px;right:10px;z-index:8;display:flex;gap:8px;flex-wrap:wrap;pointer-events:none}
 .hud-pill{padding:7px 9px;background:rgba(10,10,18,.78);border:3px solid #050509;box-shadow:0 0 0 2px #464663;color:var(--text);font-size:clamp(11px,1.8vw,14px)}
@@ -164,6 +169,10 @@ canvas{display:block;background:#111;image-rendering:pixelated;touch-action:none
           <button id="saveCurrentButton" type="button">Speichern</button>
         </div>
       </section>
+      <details class="menu-fold" open>
+        <summary>Browser-Check</summary>
+        <div id="compatList" class="menu-fold-body compat-list" aria-live="polite"></div>
+      </details>
       <details class="menu-fold" open>
         <summary>Spielstände</summary>
         <div class="menu-fold-body">
@@ -286,7 +295,7 @@ const canvas=$('game'),ctx=canvas.getContext('2d');
 ctx.imageSmoothingEnabled=false;
 
 const menuBox=$('menuBox'),fakeScrollbar=$('fakeScrollbar'),fakeScrollbarThumb=$('fakeScrollbarThumb');
-const startScreen=$('startScreen'),startButton=$('startButton'),continueButton=$('continueButton'),saveSlot1Button=$('saveSlot1Button'),saveSlot2Button=$('saveSlot2Button'),saveSlot3Button=$('saveSlot3Button'),saveCurrentButton=$('saveCurrentButton'),clearSavesButton=$('clearSavesButton'),researchButton=$('researchButton'),githubButton=$('githubButton'),restartButton=$('restartButton'),controlsButton=$('controlsButton'),creditsButton=$('creditsButton'),soundButton=$('soundButton'),menuInfo=$('menuInfo'),scoreHud=$('scoreHud'),foundHud=$('foundHud'),pagesHud=$('pagesHud'),zonesHud=$('zonesHud'),livesHud=$('livesHud'),taskHud=$('taskHud'),dialog=$('dialog'),dialogTitle=$('dialogTitle'),dialogText=$('dialogText'),answersEl=$('answers'),cutscene=$('cutscene'),sceneArt=$('sceneArt'),cutTitle=$('cutTitle'),cutBody=$('cutBody'),factGrid=$('factGrid'),winEl=$('win'),winText=$('winText'),touchInteract=$('touchInteract'),touchJump=$('touchJump'),touchMenu=$('touchMenu'),quickSaveButton=$('quickSaveButton'),audioWidget=$('audioWidget'),speakerButton=$('speakerButton'),dialogVolumeInput=$('dialogVolumeInput'),dialogVolumeValue=$('dialogVolumeValue'),muteGameButton=$('muteGameButton'),menuIcon=$('menuIcon'),menuIconFallback=$('menuIconFallback'),studentNameInput=$('studentNameInput'),studentPasswordInput=$('studentPasswordInput'),studentWordInput=$('studentWordInput'),registerButton=$('registerButton'),loginButton=$('loginButton'),syncButton=$('syncButton'),leaderboardButton=$('leaderboardButton'),logoutButton=$('logoutButton'),syncStatus=$('syncStatus'),leaderboardList=$('leaderboardList');
+const startScreen=$('startScreen'),startButton=$('startButton'),continueButton=$('continueButton'),saveSlot1Button=$('saveSlot1Button'),saveSlot2Button=$('saveSlot2Button'),saveSlot3Button=$('saveSlot3Button'),saveCurrentButton=$('saveCurrentButton'),clearSavesButton=$('clearSavesButton'),researchButton=$('researchButton'),githubButton=$('githubButton'),restartButton=$('restartButton'),controlsButton=$('controlsButton'),creditsButton=$('creditsButton'),soundButton=$('soundButton'),menuInfo=$('menuInfo'),scoreHud=$('scoreHud'),foundHud=$('foundHud'),pagesHud=$('pagesHud'),zonesHud=$('zonesHud'),livesHud=$('livesHud'),taskHud=$('taskHud'),dialog=$('dialog'),dialogTitle=$('dialogTitle'),dialogText=$('dialogText'),answersEl=$('answers'),cutscene=$('cutscene'),sceneArt=$('sceneArt'),cutTitle=$('cutTitle'),cutBody=$('cutBody'),factGrid=$('factGrid'),winEl=$('win'),winText=$('winText'),touchInteract=$('touchInteract'),touchJump=$('touchJump'),touchMenu=$('touchMenu'),quickSaveButton=$('quickSaveButton'),audioWidget=$('audioWidget'),speakerButton=$('speakerButton'),dialogVolumeInput=$('dialogVolumeInput'),dialogVolumeValue=$('dialogVolumeValue'),muteGameButton=$('muteGameButton'),menuIcon=$('menuIcon'),menuIconFallback=$('menuIconFallback'),studentNameInput=$('studentNameInput'),studentPasswordInput=$('studentPasswordInput'),studentWordInput=$('studentWordInput'),registerButton=$('registerButton'),loginButton=$('loginButton'),syncButton=$('syncButton'),leaderboardButton=$('leaderboardButton'),logoutButton=$('logoutButton'),syncStatus=$('syncStatus'),leaderboardList=$('leaderboardList'),compatList=$('compatList');
 
 let locked=true,menuOpen=true,gameStarted=false,score=0,lives=5,mistakes=0,gameStartedAt=null,lastAutoSave=0,currentSlot='autosave',fallCooldown=0,lastJump=0,activeChapter=null,activeQuestionIndex=0,activeCutscene=null,cutsceneIndex=0,afterCutscene=null,time=0,weatherTimer=0,weather='Sonne',winSoundPlayed=false;
 let cam={x:0,y:0};
@@ -447,6 +456,33 @@ return raw?JSON.parse(raw):fallback;
 }
 function writeJson(key,value){
 try{localStorage.setItem(key,JSON.stringify(value));return true}catch{return false}
+}
+function storageAvailable(){
+try{
+const key=SAVE_PREFIX+'compatTest';
+localStorage.setItem(key,'1');
+localStorage.removeItem(key);
+return true;
+}catch{return false}
+}
+function browserCompatibility(){
+const checks=[
+{ok:!!(canvas&&ctx),level:'bad',text:'Canvas wird benötigt. Ohne Canvas kann das Spiel nicht gezeichnet werden.'},
+{ok:storageAvailable(),level:'warn',text:'Lokaler Speicher ist eingeschränkt. Speichern auf diesem Gerät kann unzuverlässig sein.'},
+{ok:!!(window.crypto&&crypto.subtle&&window.TextEncoder),level:'bad',text:'Sichere Browser-Krypto fehlt. Anmeldung und lokale Passworthashes funktionieren wahrscheinlich nicht.'},
+{ok:!!(window.fetch&&window.Promise),level:'bad',text:'Netzwerk-APIs fehlen. Anmeldung, Sync und Leaderboard funktionieren wahrscheinlich nicht.'},
+{ok:!!(window.AudioContext||window.webkitAudioContext),level:'warn',text:'In diesem Browser wird Audio wahrscheinlich nicht funktionieren. Dadurch kann man das Spiel aber trotzdem spielen.'},
+{ok:!!(window.PointerEvent||'ontouchstart' in window||navigator.maxTouchPoints>0),level:'warn',text:'Touch-/Pointer-Steuerung ist eingeschränkt. Tastatursteuerung kann trotzdem funktionieren.'},
+];
+return checks;
+}
+function updateCompatibilityUi(){
+compatList.innerHTML=browserCompatibility().map(check=>{
+const cls=check.ok?'ok':check.level;
+const label=check.ok?'OK':check.level==='bad'?'Problem':'Hinweis';
+return `<div class="compat-item ${cls}">${label}: ${check.ok?'Dieser Browser unterstützt diese Funktion.':check.text}</div>`;
+}).join('');
+requestAnimationFrame(updatePixelScrollbar);
 }
 function ensureAudio(){
 if(soundMuted)return null;
@@ -1732,6 +1768,7 @@ console.assert(!CREDITS_HTML.includes('ChatGPT'),'credits do not mention ChatGPT
 console.assert(quickSaveButton instanceof HTMLButtonElement,'in-game quick save button exists');
 console.assert(ICON_URL==='./icon.png','local icon is integrated');
 console.assert(menuIcon instanceof HTMLImageElement,'menu icon image exists');
+console.assert(compatList instanceof HTMLElement&&typeof browserCompatibility==='function','browser compatibility check exists');
 }
 runSmokeTests();
 
@@ -1779,6 +1816,7 @@ if(k==='escape')toggleMenu();
 window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
 
 setupIcon();
+updateCompatibilityUi();
 updateAudioControls();
 if(authSession?.username)studentNameInput.value=authSession.username;
 refreshAuthUi();
