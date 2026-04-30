@@ -35,8 +35,20 @@ CREATE TABLE IF NOT EXISTS scores (
   student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
   score INTEGER NOT NULL,
   level INTEGER NOT NULL DEFAULT 0,
+  rank_score INTEGER NOT NULL DEFAULT 0,
+  mistakes INTEGER NOT NULL DEFAULT 0,
+  elapsed_seconds INTEGER NOT NULL DEFAULT 0,
+  lives_remaining INTEGER NOT NULL DEFAULT 0,
+  completed BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+ALTER TABLE scores ADD COLUMN IF NOT EXISTS rank_score INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE scores ADD COLUMN IF NOT EXISTS mistakes INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE scores ADD COLUMN IF NOT EXISTS elapsed_seconds INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE scores ADD COLUMN IF NOT EXISTS lives_remaining INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE scores ADD COLUMN IF NOT EXISTS completed BOOLEAN NOT NULL DEFAULT FALSE;
+
 CREATE INDEX IF NOT EXISTS scores_student_score_idx ON scores (student_id, score DESC);
+CREATE INDEX IF NOT EXISTS scores_student_rank_score_idx ON scores (student_id, rank_score DESC, score DESC);
 CREATE INDEX IF NOT EXISTS game_progress_student_slot_idx ON game_progress (student_id, slot);

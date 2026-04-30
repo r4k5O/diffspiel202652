@@ -288,7 +288,7 @@ ctx.imageSmoothingEnabled=false;
 const menuBox=$('menuBox'),fakeScrollbar=$('fakeScrollbar'),fakeScrollbarThumb=$('fakeScrollbarThumb');
 const startScreen=$('startScreen'),startButton=$('startButton'),continueButton=$('continueButton'),saveSlot1Button=$('saveSlot1Button'),saveSlot2Button=$('saveSlot2Button'),saveSlot3Button=$('saveSlot3Button'),saveCurrentButton=$('saveCurrentButton'),clearSavesButton=$('clearSavesButton'),researchButton=$('researchButton'),githubButton=$('githubButton'),restartButton=$('restartButton'),controlsButton=$('controlsButton'),creditsButton=$('creditsButton'),soundButton=$('soundButton'),menuInfo=$('menuInfo'),scoreHud=$('scoreHud'),foundHud=$('foundHud'),pagesHud=$('pagesHud'),zonesHud=$('zonesHud'),livesHud=$('livesHud'),taskHud=$('taskHud'),dialog=$('dialog'),dialogTitle=$('dialogTitle'),dialogText=$('dialogText'),answersEl=$('answers'),cutscene=$('cutscene'),sceneArt=$('sceneArt'),cutTitle=$('cutTitle'),cutBody=$('cutBody'),factGrid=$('factGrid'),winEl=$('win'),winText=$('winText'),touchInteract=$('touchInteract'),touchJump=$('touchJump'),touchMenu=$('touchMenu'),quickSaveButton=$('quickSaveButton'),audioWidget=$('audioWidget'),speakerButton=$('speakerButton'),dialogVolumeInput=$('dialogVolumeInput'),dialogVolumeValue=$('dialogVolumeValue'),muteGameButton=$('muteGameButton'),menuIcon=$('menuIcon'),menuIconFallback=$('menuIconFallback'),studentNameInput=$('studentNameInput'),studentPasswordInput=$('studentPasswordInput'),studentWordInput=$('studentWordInput'),registerButton=$('registerButton'),loginButton=$('loginButton'),syncButton=$('syncButton'),leaderboardButton=$('leaderboardButton'),logoutButton=$('logoutButton'),syncStatus=$('syncStatus'),leaderboardList=$('leaderboardList');
 
-let locked=true,menuOpen=true,gameStarted=false,score=0,lives=5,lastAutoSave=0,currentSlot='autosave',fallCooldown=0,lastJump=0,activeChapter=null,activeQuestionIndex=0,activeCutscene=null,cutsceneIndex=0,afterCutscene=null,time=0,weatherTimer=0,weather='Sonne',winSoundPlayed=false;
+let locked=true,menuOpen=true,gameStarted=false,score=0,lives=5,mistakes=0,gameStartedAt=null,lastAutoSave=0,currentSlot='autosave',fallCooldown=0,lastJump=0,activeChapter=null,activeQuestionIndex=0,activeCutscene=null,cutsceneIndex=0,afterCutscene=null,time=0,weatherTimer=0,weather='Sonne',winSoundPlayed=false;
 let cam={x:0,y:0};
 let correctSlotBag=[];
 let authSession=readJson(SAVE_PREFIX+'authSession',null);
@@ -749,6 +749,29 @@ const db=await withSqlite();
 if(!db)return null;
 return sqliteAll('SELECT username, best_score AS bestScore FROM students ORDER BY best_score DESC LIMIT 10');
 }
+function elapsedSeconds(){
+return gameStartedAt?Math.max(0,Math.floor((Date.now()-gameStartedAt)/1000)):0;
+}
+function rankScore(){
+const timeBonus=Math.max(0,1800-elapsedSeconds());
+const lifeBonus=Math.max(0,lives)*120;
+const mistakeBonus=Math.max(0,600-mistakes*60);
+const completionBonus=chapters.every(c=>c.done)?500:0;
+return Math.max(0,Math.round(score+timeBonus+lifeBonus+mistakeBonus+completionBonus));
+}
+function formatTime(seconds){
+const s=Math.max(0,Number(seconds)||0);
+const m=Math.floor(s/60);
+return `${m}:${String(s%60).padStart(2,'0')}`;
+}
+function formatLeaderboardRow(r,i){
+const scoreValue=r.bestScore??r.best_score??r.score??0;
+const rankValue=r.rankScore??r.rank_score??scoreValue;
+const details=Number(r.elapsedSeconds??r.elapsed_seconds)>0
+?` · ${formatTime(Number(r.elapsedSeconds??r.elapsed_seconds))}, ${r.mistakes??0} Fehler`
+:'';
+return `${i+1}. ${r.username}: ${rankValue} Rangpunkte (${scoreValue} Punkte${details})`;
+}
 function getDeviceId(){
 let id=localStorage.getItem(SAVE_PREFIX+'deviceId');
 if(!id){
@@ -900,7 +923,7 @@ function slotLabel(s){return s==='autosave'?'Autosave':s.replace('slot','Slot ')
 
 function saveData(){
 return{
-score,lives,gameStarted,
+score,lives,mistakes,gameStarted,gameStartedAt,
 player:{x:player.x,y:player.y},
 chapters:chapters.map(c=>({id:c.id,done:c.done,cutSeen:c.cutSeen})),
 pages:pages.map(p=>({id:p.id,got:p.got,visible:p.visible})),
@@ -911,7 +934,7 @@ updatedAt:new Date().toISOString()
 }
 
 function applySaveData(d){
-score=d.score||0;lives=d.lives||5;gameStarted=!!d.gameStarted;
+score=d.score||0;lives=d.lives||5;mistakes=d.mistakes||0;gameStarted=!!d.gameStarted;gameStartedAt=d.gameStartedAt||null;
 winSoundPlayed=false;
 player.x=d.player?.x??spawn.x;player.y=d.player?.y??spawn.y;
 weather=d.weather||'Sonne';
@@ -937,7 +960,15 @@ updateLocalBestScore();
 if(authSession.local)return;
 try{
 await apiJson('/api/progress','PUT',{slot,currentLevel:chapters.filter(c=>c.done).length,progressData:data,score:data.score,updatedAt:data.updatedAt});
-await apiJson('/api/scores','POST',{score:data.score,level:chapters.filter(c=>c.done).length});
+await apiJson('/api/scores','POST',{
+score:data.score,
+level:chapters.filter(c=>c.done).length,
+rankScore:rankScore(),
+mistakes,
+elapsedSeconds:elapsedSeconds(),
+livesRemaining:lives,
+completed:chapters.every(c=>c.done)
+});
 if(!silent)setSyncStatus('Spielstand gesichert.');
 }catch(err){
 if(!silent)setSyncStatus('Spielstand konnte gerade nicht gesichert werden.');
@@ -1014,18 +1045,18 @@ async function loadLeaderboard(){
 leaderboardList.textContent='Leaderboard wird geladen...';
 try{
 const rows=await apiJson('/api/leaderboard','GET');
-leaderboardList.innerHTML=(Array.isArray(rows)?rows:rows.items||[]).slice(0,10).map((r,i)=>`${i+1}. ${r.username}: ${r.bestScore??r.best_score??r.score} Punkte`).join('<br>')||'Noch keine Scores.';
+leaderboardList.innerHTML=(Array.isArray(rows)?rows:rows.items||[]).slice(0,10).map(formatLeaderboardRow).join('<br>')||'Noch keine Scores.';
 }catch{
 if(!(await allowLocalFallback())){leaderboardList.textContent=serverStorageMessage();requestAnimationFrame(updatePixelScrollbar);return}
 const sqliteRows=await localLeaderboardSqlite();
 if(sqliteRows){
-leaderboardList.innerHTML=sqliteRows.map((r,i)=>`${i+1}. ${r.username}: ${r.bestScore} Punkte`).join('<br>')||'Noch keine Punkte gespeichert.';
+leaderboardList.innerHTML=sqliteRows.map(formatLeaderboardRow).join('<br>')||'Noch keine Punkte gespeichert.';
 requestAnimationFrame(updatePixelScrollbar);
 return;
 }
 const users=readJson(localAuthKey(),{});
 const rows=Object.entries(users).map(([username,u])=>({username,bestScore:u.bestScore||0})).sort((a,b)=>b.bestScore-a.bestScore).slice(0,10);
-leaderboardList.innerHTML=rows.map((r,i)=>`${i+1}. ${r.username}: ${r.bestScore} Punkte`).join('<br>')||'Noch keine Punkte gespeichert.';
+leaderboardList.innerHTML=rows.map(formatLeaderboardRow).join('<br>')||'Noch keine Punkte gespeichert.';
 }
 requestAnimationFrame(updatePixelScrollbar);
 }
@@ -1063,7 +1094,7 @@ taskHud.textContent=!gameStarted?'Start':done===chapters.length?'Finale':collect
 quickSaveButton.classList.toggle('active',gameStarted&&!menuOpen&&!locked);
 updateSaveButtons();
 if(done===chapters.length&&gameStarted){
-winText.textContent=`Du hast ${score} Punkte gesammelt, ${collectedPages()} Archivseiten gefunden, alle Zonen erkundet und alle 24 Fragen gelöst.`;
+winText.textContent=`Du hast ${score} Punkte und ${rankScore()} Rangpunkte gesammelt. Zeit: ${formatTime(elapsedSeconds())}. Fehler: ${mistakes}. Archivseiten: ${collectedPages()}.`;
 winEl.classList.add('active');
 locked=true;
 if(!winSoundPlayed){
@@ -1097,6 +1128,7 @@ if(fallCooldown)return;
 fallCooldown=70;
 sfx('hurt');
 lives--;
+mistakes++;
 score=Math.max(0,score-25);
 player.x=spawn.x;player.y=spawn.y;
 player.jumpZ=0;player.jumpV=0;player.jumping=false;
@@ -1245,6 +1277,7 @@ answersEl.appendChild(n);
 }
 }else{
 sfx('wrong');
+mistakes++;
 score=Math.max(0,score-15);
 dialogText.textContent='Fast! Die Antworten werden neu gemischt. Lies genau und versuche es erneut.';
 speechNoise(dialogText.textContent,'warning');
@@ -1274,11 +1307,11 @@ answersEl.appendChild(b);
 }
 
 function closeDialog(){dialog.classList.remove('active');locked=false}
-function startIntro(){ensureAudio();sfx('start');gameStarted=true;menuOpen=false;locked=false;startScreen.classList.add('hidden');saveGame('autosave',true)}
+function startIntro(){ensureAudio();sfx('start');gameStarted=true;if(!gameStartedAt)gameStartedAt=Date.now();menuOpen=false;locked=false;startScreen.classList.add('hidden');saveGame('autosave',true)}
 
 function restartGame(){
 sfx('start');
-score=0;lives=5;gameStarted=false;winSoundPlayed=false;
+score=0;lives=5;mistakes=0;gameStarted=false;gameStartedAt=null;winSoundPlayed=false;
 player.x=spawn.x;player.y=spawn.y;player.jumpZ=0;player.jumpV=0;player.jumping=false;
 weather='Sonne';
 chapters.forEach(c=>{c.done=false;c.cutSeen=false});

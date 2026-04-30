@@ -5,11 +5,23 @@ export default async function handler(req, res) {
 
   try {
     const { rows } = await getPool().query(
-      `SELECT students.username, MAX(scores.score) AS best_score
-       FROM scores
-       JOIN students ON students.id = scores.student_id
-       GROUP BY students.id, students.username
-       ORDER BY best_score DESC
+      `WITH best AS (
+         SELECT DISTINCT ON (students.id)
+           students.username,
+           scores.score AS best_score,
+           GREATEST(scores.rank_score, scores.score) AS rank_score,
+           scores.mistakes,
+           scores.elapsed_seconds,
+           scores.lives_remaining,
+           scores.completed,
+           scores.created_at
+         FROM scores
+         JOIN students ON students.id = scores.student_id
+         ORDER BY students.id, GREATEST(scores.rank_score, scores.score) DESC, scores.score DESC, scores.created_at ASC
+       )
+       SELECT *
+       FROM best
+       ORDER BY rank_score DESC, best_score DESC, completed DESC, mistakes ASC, elapsed_seconds ASC
        LIMIT 50`
     );
 
@@ -19,6 +31,11 @@ export default async function handler(req, res) {
       rows.map((row) => ({
         username: row.username,
         bestScore: Number(row.best_score),
+        rankScore: Number(row.rank_score),
+        mistakes: Number(row.mistakes),
+        elapsedSeconds: Number(row.elapsed_seconds),
+        livesRemaining: Number(row.lives_remaining),
+        completed: row.completed,
       }))
     );
   } catch (error) {
