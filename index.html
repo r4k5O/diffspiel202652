@@ -295,6 +295,8 @@ let authSession=readJson(SAVE_PREFIX+'authSession',null);
 let syncBusy=false;
 let sqliteDb=null;
 const sqliteReady=initSqlite();
+let storageStatus=null;
+const storageStatusReady=detectServerStorage();
 let audioCtx=null,masterGain=null,musicGain=null,dialogGain=null,musicTimer=null,musicStep=0,lastMenuSound=0,soundMuted=readJson(SAVE_PREFIX+'soundMuted',false),dialogVolume=readJson(SAVE_PREFIX+'dialogVolume',70);
 const activeSpeech=[],activeSfx=[];
 const keys=new Set();
@@ -768,12 +770,34 @@ const data=await res.json().catch(()=>({}));
 if(!res.ok)throw new Error(data.message||data.error||'Verbindung nicht erreichbar');
 return data;
 }
+async function detectServerStorage(){
+try{
+storageStatus=await apiJson('/api/storage','GET');
+}catch{
+storageStatus={hasDatabase:false,isVercel:false,requiresServerStorage:false,message:'Keine Server-Datenbank erkannt.'};
+}
+if(storageStatus.requiresServerStorage&&authSession?.local){
+authSession=null;
+localStorage.removeItem(SAVE_PREFIX+'authSession');
+}
+refreshAuthUi();
+return storageStatus;
+}
+async function allowLocalFallback(){
+try{await storageStatusReady}catch{}
+return !storageStatus?.requiresServerStorage;
+}
+function serverStorageMessage(){
+return storageStatus?.message||'Auf Vercel ist keine persistente Datenbank verbunden.';
+}
 function setSyncStatus(text){syncStatus.textContent=text;requestAnimationFrame(updatePixelScrollbar)}
 function refreshAuthUi(){
 const name=authSession?.username;
 logoutButton.disabled=!authSession;
 syncButton.disabled=!authSession||syncBusy;
-const defaultText=name?'Angemeldet als '+name+'. Dein Fortschritt ist bereit.':'Nicht angemeldet. Dein Fortschritt bleibt auf diesem Gerät erhalten.';
+const defaultText=name
+?'Angemeldet als '+name+'. Dein Fortschritt ist bereit.'
+:(storageStatus?.requiresServerStorage?serverStorageMessage():'Nicht angemeldet. Dein Fortschritt bleibt auf diesem Gerät erhalten.');
 if(!syncStatus.textContent||syncStatus.textContent.includes('Nicht angemeldet')||syncStatus.textContent.includes('Angemeldet als '))setSyncStatus(defaultText);
 }
 async function registerStudent(){
@@ -790,6 +814,7 @@ writeJson(SAVE_PREFIX+'authSession',authSession);
 setSyncStatus('Registriert. Spielstand wird geladen.');
 await syncNow();
 }catch{
+if(!(await allowLocalFallback())){setSyncStatus(serverStorageMessage());return}
 if(await localRegisterSqlite(username,password,wordProtection,deviceIdentifier)){
 refreshAuthUi();
 studentPasswordInput.value='';
@@ -820,6 +845,7 @@ writeJson(SAVE_PREFIX+'authSession',authSession);
 setSyncStatus('Angemeldet. Spielstand wird geladen.');
 await syncNow();
 }catch{
+if(!(await allowLocalFallback())){setSyncStatus(serverStorageMessage());return}
 if(await localLoginSqlite(username,password,wordProtection,deviceIdentifier)){
 refreshAuthUi();
 studentPasswordInput.value='';
@@ -961,7 +987,7 @@ setSyncStatus('Spielstand geladen.');
 await pushRemoteSave('autosave',localData,false);
 }
 }catch(err){
-setSyncStatus('Spielstand konnte gerade nicht abgeglichen werden.');
+setSyncStatus(storageStatus?.requiresServerStorage?serverStorageMessage():'Spielstand konnte gerade nicht abgeglichen werden.');
 }finally{
 syncBusy=false;
 refreshAuthUi();
@@ -974,6 +1000,7 @@ try{
 const rows=await apiJson('/api/leaderboard','GET');
 leaderboardList.innerHTML=(Array.isArray(rows)?rows:rows.items||[]).slice(0,10).map((r,i)=>`${i+1}. ${r.username}: ${r.bestScore??r.best_score??r.score} Punkte`).join('<br>')||'Noch keine Scores.';
 }catch{
+if(!(await allowLocalFallback())){leaderboardList.textContent=serverStorageMessage();requestAnimationFrame(updatePixelScrollbar);return}
 const sqliteRows=await localLeaderboardSqlite();
 if(sqliteRows){
 leaderboardList.innerHTML=sqliteRows.map((r,i)=>`${i+1}. ${r.username}: ${r.bestScore} Punkte`).join('<br>')||'Noch keine Punkte gespeichert.';

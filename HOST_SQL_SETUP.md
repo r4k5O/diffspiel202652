@@ -1,10 +1,18 @@
-# Host-SQL Setup fuer Vercel
+# Host-SQL Setup fuer Vercel und andere Hosts
 
-Diese Version nutzt serverseitige Vercel API Functions unter `api/` und eine SQL-Datenbank ueber `DATABASE_URL`.
+Diese Version nutzt serverseitige API Functions unter `api/` und eine SQL-Datenbank ueber `DATABASE_URL`.
+
+Die App prueft zur Laufzeit:
+
+- Ist `DATABASE_URL`, `POSTGRES_URL` oder `POSTGRES_PRISMA_URL` gesetzt, wird die persistente Server-Datenbank genutzt.
+- Laeuft die App auf Vercel ohne Server-Datenbank, wird kein lokaler Browser-Fallback als Cloud-Speicher verwendet. Die UI zeigt dann einen Hinweis, dass eine persistente Datenbank verbunden werden muss.
+- Laeuft die App ausserhalb von Vercel ohne Server-Datenbank, kann sie lokal im Browser speichern. Das ist praktisch zum Testen, aber nicht geraete- oder deploy-persistent.
 
 ## 1. SQL-Datenbank verbinden
 
-Auf Vercel eine SQL-Datenbank aus dem Marketplace verbinden, z. B. Neon, Supabase oder Turso/Postgres-kompatibel.
+Auf Vercel eine SQL-Datenbank aus dem Marketplace verbinden, z. B. Neon, Supabase oder eine andere Postgres-kompatible Integration.
+
+Auf anderen Hosts funktioniert dieselbe App ebenfalls, wenn dort eine Postgres-kompatible Datenbank angebunden und die Connection URL als Environment Variable gesetzt wird.
 
 Die API liest diese Environment Variable:
 

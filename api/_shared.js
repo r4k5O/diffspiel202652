@@ -3,12 +3,38 @@ import pg from "pg";
 
 const { Pool } = pg;
 const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.POSTGRES_PRISMA_URL;
+const databaseEnvName = process.env.DATABASE_URL
+  ? "DATABASE_URL"
+  : process.env.POSTGRES_URL
+    ? "POSTGRES_URL"
+    : process.env.POSTGRES_PRISMA_URL
+      ? "POSTGRES_PRISMA_URL"
+      : null;
 
 let pool;
 
+export function hasDatabaseConnection() {
+  return Boolean(connectionString);
+}
+
+export function getStorageStatus() {
+  const isVercel = Boolean(process.env.VERCEL);
+  return {
+    hasDatabase: hasDatabaseConnection(),
+    databaseEnvName,
+    isVercel,
+    requiresServerStorage: isVercel && !hasDatabaseConnection(),
+    message: hasDatabaseConnection()
+      ? `Server-Datenbank aktiv (${databaseEnvName}).`
+      : isVercel
+        ? "Auf Vercel ist keine persistente Datenbank verbunden. Verbinde eine Marketplace-Storage-Integration oder setze DATABASE_URL."
+        : "Keine Server-Datenbank konfiguriert. Diese Umgebung kann lokal im Browser speichern oder mit DATABASE_URL persistent werden.",
+  };
+}
+
 export function getPool() {
   if (!connectionString) {
-    throw new Error("DATABASE_URL fehlt. Verbinde auf Vercel eine SQL-Datenbank und setze DATABASE_URL.");
+    throw new Error(getStorageStatus().message);
   }
 
   if (!pool) {
