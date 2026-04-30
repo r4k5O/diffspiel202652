@@ -1,4 +1,5 @@
-import { allowMethods, getPool, json, readBody, requireStudent } from "./_shared.js";
+import { addScore } from "./_data.js";
+import { allowMethods, json, readBody, requireStudent } from "./_shared.js";
 
 export default async function handler(req, res) {
   if (!allowMethods(req, res, ["POST"])) return;
@@ -27,32 +28,27 @@ export default async function handler(req, res) {
       return json(res, 400, { error: "invalid_score" });
     }
 
-    const { rows } = await getPool().query(
-      `INSERT INTO scores (student_id, score, level, rank_score, mistakes, elapsed_seconds, lives_remaining, completed)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING id, score, level, rank_score, mistakes, elapsed_seconds, lives_remaining, completed, created_at`,
-      [
-        student.id,
-        cleanScore,
-        cleanLevel,
-        cleanRankScore,
-        cleanMistakes,
-        cleanElapsedSeconds,
-        cleanLivesRemaining,
-        Boolean(completed),
-      ]
-    );
+    const row = await addScore({
+      studentId: student.id,
+      score: cleanScore,
+      level: cleanLevel,
+      rankScore: cleanRankScore,
+      mistakes: cleanMistakes,
+      elapsedSeconds: cleanElapsedSeconds,
+      livesRemaining: cleanLivesRemaining,
+      completed: Boolean(completed),
+    });
 
     return json(res, 200, {
-      id: rows[0].id,
-      score: rows[0].score,
-      level: rows[0].level,
-      rankScore: rows[0].rank_score,
-      mistakes: rows[0].mistakes,
-      elapsedSeconds: rows[0].elapsed_seconds,
-      livesRemaining: rows[0].lives_remaining,
-      completed: rows[0].completed,
-      createdAt: rows[0].created_at,
+      id: row.id,
+      score: row.score,
+      level: row.level,
+      rankScore: row.rank_score,
+      mistakes: row.mistakes,
+      elapsedSeconds: row.elapsed_seconds,
+      livesRemaining: row.lives_remaining,
+      completed: row.completed,
+      createdAt: row.created_at,
     });
   } catch (error) {
     return json(res, 500, { error: "server_error", message: error.message });

@@ -1,20 +1,44 @@
 import crypto from "node:crypto";
 import pg from "pg";
+import { createClient } from "@libsql/client/http";
 
 const { Pool } = pg;
-const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.POSTGRES_PRISMA_URL;
-const databaseEnvName = process.env.DATABASE_URL
-  ? "DATABASE_URL"
-  : process.env.POSTGRES_URL
-    ? "POSTGRES_URL"
-    : process.env.POSTGRES_PRISMA_URL
-      ? "POSTGRES_PRISMA_URL"
+const postgresUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.POSTGRES_PRISMA_URL;
+const libsqlUrl = process.env.TURSO_DATABASE_URL || process.env.LIBSQL_URL || process.env.SQLITE_URL;
+const libsqlAuthToken = process.env.TURSO_AUTH_TOKEN || process.env.LIBSQL_AUTH_TOKEN;
+const databaseType =
+  libsqlUrl || postgresUrl?.startsWith("libsql:") || postgresUrl?.startsWith("https:")
+    ? "libsql"
+    : postgresUrl
+      ? "postgres"
       : null;
+const connectionString = databaseType === "libsql" ? libsqlUrl || postgresUrl : postgresUrl;
+const databaseEnvName =
+  databaseType === "libsql"
+    ? process.env.TURSO_DATABASE_URL
+      ? "TURSO_DATABASE_URL"
+      : process.env.LIBSQL_URL
+        ? "LIBSQL_URL"
+        : process.env.SQLITE_URL
+          ? "SQLITE_URL"
+          : "DATABASE_URL"
+    : process.env.DATABASE_URL
+      ? "DATABASE_URL"
+      : process.env.POSTGRES_URL
+        ? "POSTGRES_URL"
+        : process.env.POSTGRES_PRISMA_URL
+          ? "POSTGRES_PRISMA_URL"
+          : null;
 
 let pool;
+let libsqlClient;
 
 export function hasDatabaseConnection() {
   return Boolean(connectionString);
+}
+
+export function getDatabaseType() {
+  return databaseType;
 }
 
 export function getStorageStatus() {
@@ -22,13 +46,14 @@ export function getStorageStatus() {
   return {
     hasDatabase: hasDatabaseConnection(),
     databaseEnvName,
+    databaseType,
     isVercel,
     requiresServerStorage: isVercel && !hasDatabaseConnection(),
     message: hasDatabaseConnection()
-      ? `Server-Datenbank aktiv (${databaseEnvName}).`
+      ? `Server-Datenbank aktiv (${databaseEnvName}, ${databaseType}).`
       : isVercel
-        ? "Auf Vercel ist keine persistente Datenbank verbunden. Verbinde eine Marketplace-Storage-Integration oder setze DATABASE_URL."
-        : "Keine Server-Datenbank konfiguriert. Diese Umgebung kann lokal im Browser speichern oder mit DATABASE_URL persistent werden.",
+        ? "Auf Vercel ist keine persistente Datenbank verbunden. Verbinde eine Marketplace-Storage-Integration oder setze DATABASE_URL/TURSO_DATABASE_URL."
+        : "Keine Server-Datenbank konfiguriert. Diese Umgebung kann lokal im Browser speichern oder mit DATABASE_URL/TURSO_DATABASE_URL persistent werden.",
   };
 }
 
@@ -45,6 +70,21 @@ export function getPool() {
   }
 
   return pool;
+}
+
+export function getLibsqlClient() {
+  if (!connectionString) {
+    throw new Error(getStorageStatus().message);
+  }
+
+  if (!libsqlClient) {
+    libsqlClient = createClient({
+      url: connectionString,
+      authToken: libsqlAuthToken,
+    });
+  }
+
+  return libsqlClient;
 }
 
 export function json(res, status, body) {
@@ -103,8 +143,8 @@ export function verifyToken(req) {
 export async function requireStudent(req) {
   const token = verifyToken(req);
   if (!token) return null;
-  const { rows } = await getPool().query("SELECT id, username FROM students WHERE id = $1", [token.sub]);
-  return rows[0] || null;
+  const { getStudentById } = await import("./_data.js");
+  return getStudentById(token.sub);
 }
 
 export function allowMethods(req, res, methods) {
