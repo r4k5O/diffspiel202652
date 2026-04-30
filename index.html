@@ -872,8 +872,11 @@ studentWordInput.value='';
 }
 function logoutStudent(){
 authSession=null;
-localStorage.removeItem(SAVE_PREFIX+'authSession');
+clearLocalAuthData();
 leaderboardList.textContent='';
+studentPasswordInput.value='';
+studentWordInput.value='';
+setSyncStatus('Abgemeldet. Lokale Anmeldedaten wurden gelöscht.');
 refreshAuthUi();
 }
 
@@ -881,6 +884,17 @@ function sk(s){return SAVE_PREFIX+s}
 function getS(s){try{return localStorage.getItem(sk(s))}catch{return null}}
 function setS(s,v){try{localStorage.setItem(sk(s),v);return true}catch{return false}}
 function remS(s){try{localStorage.removeItem(sk(s))}catch{}}
+function clearLocalAuthData(){
+['authSession','deviceId','students'].forEach(remS);
+try{localStorage.removeItem(SAVE_PREFIX+'sqliteDb')}catch{}
+try{
+if(sqliteDb){
+sqliteDb.run('DELETE FROM devices');
+sqliteDb.run('DELETE FROM students');
+saveSqlite();
+}
+}catch{}
+}
 function hasSave(s){return!!getS(s)}
 function slotLabel(s){return s==='autosave'?'Autosave':s.replace('slot','Slot ')}
 
