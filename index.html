@@ -800,6 +800,11 @@ const s=Math.max(0,Number(seconds)||0);
 const m=Math.floor(s/60);
 return `${m}:${String(s%60).padStart(2,'0')}`;
 }
+function remoteSavePayload(remote){
+const data=remote?.progressData||remote?.progress_data;
+if(!data)return null;
+return {...data,updatedAt:data.updatedAt||remote.updatedAt||remote.updated_at};
+}
 function formatLeaderboardRow(r,i){
 const scoreValue=r.bestScore??r.best_score??r.score??0;
 const rankValue=r.rankScore??r.rank_score??scoreValue;
@@ -1014,7 +1019,7 @@ if(!silent)setSyncStatus('Spielstand gesichert.');
 }catch(err){
 if(err.message==='conflict'){
 const remote=await apiJson('/api/progress','GET').catch(()=>null);
-const remoteData=remote?.progressData||remote?.progress_data;
+const remoteData=remoteSavePayload(remote);
 if(remoteData){
 setS(slot,JSON.stringify(remoteData));
 applySaveData(remoteData);
@@ -1072,12 +1077,12 @@ setSyncStatus('Fortschritt ist auf diesem Gerät gespeichert.');
 return;
 }
 const remote=await apiJson('/api/progress','GET');
-const remoteData=remote.progressData||remote.progress_data;
+const remoteData=remoteSavePayload(remote);
 const localRaw=getS('autosave');
 const localData=localRaw?JSON.parse(localRaw):null;
 const remoteTime=remoteData?.updatedAt?Date.parse(remoteData.updatedAt):0;
 const localTime=localData?.updatedAt?Date.parse(localData.updatedAt):0;
-if(remoteData&&remoteTime>localTime){
+if(remoteData&&remoteTime&&(!localTime||remoteTime>=localTime-1000)){
 setS('autosave',JSON.stringify(remoteData));
 applySaveData(remoteData);
 updateStats();
