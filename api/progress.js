@@ -29,9 +29,9 @@ export default async function handler(req, res) {
       });
     }
 
-    const { slot = "autosave", currentLevel = 0, progressData = {}, score = 0, updatedAt } = await readBody(req);
+    const { slot = "autosave", currentLevel = 0, progressData = {}, score = 0, updatedAt, force = false } = await readBody(req);
 
-    if (updatedAt) {
+    if (updatedAt && !force) {
       const existingUpdatedAt = await getProgressUpdatedAt(student.id, String(slot));
       const remoteTime = existingUpdatedAt ? new Date(existingUpdatedAt).getTime() : 0;
       const clientTime = new Date(updatedAt).getTime();

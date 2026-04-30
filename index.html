@@ -1001,7 +1001,7 @@ if(!authSession)return;
 updateLocalBestScore();
 if(authSession.local)return;
 try{
-const saved=await apiJson('/api/progress','PUT',{slot,currentLevel:chapters.filter(c=>c.done).length,progressData:data,score:data.score,updatedAt:data.updatedAt});
+const saved=await apiJson('/api/progress','PUT',{slot,currentLevel:chapters.filter(c=>c.done).length,progressData:data,score:data.score,updatedAt:data.updatedAt,force:silent});
 if(saved.updatedAt){
 data.updatedAt=saved.updatedAt;
 setS(slot,JSON.stringify(data));
