@@ -770,7 +770,8 @@ const rankValue=r.rankScore??r.rank_score??scoreValue;
 const details=Number(r.elapsedSeconds??r.elapsed_seconds)>0
 ?` · ${formatTime(Number(r.elapsedSeconds??r.elapsed_seconds))}, ${r.mistakes??0} Fehler`
 :'';
-return `${i+1}. ${r.username}: ${rankValue} Rangpunkte (${scoreValue} Punkte${details})`;
+const place=r.place??i+1;
+return `${place}. ${r.username}: ${rankValue} Rangpunkte (${scoreValue} Punkte${details})`;
 }
 function getDeviceId(){
 let id=localStorage.getItem(SAVE_PREFIX+'deviceId');
@@ -1044,8 +1045,14 @@ refreshAuthUi();
 async function loadLeaderboard(){
 leaderboardList.textContent='Leaderboard wird geladen...';
 try{
-const rows=await apiJson('/api/leaderboard','GET');
-leaderboardList.innerHTML=(Array.isArray(rows)?rows:rows.items||[]).slice(0,10).map(formatLeaderboardRow).join('<br>')||'Noch keine Scores.';
+const data=await apiJson('/api/leaderboard','GET');
+const rows=(Array.isArray(data)?data:data.items||[]).slice(0,10);
+let html=rows.map(formatLeaderboardRow).join('<br>')||'Noch keine Scores.';
+const own=Array.isArray(data)?null:data.currentUser;
+if(own&&!rows.some(r=>r.username===own.username)){
+html+=`<br><br>Dein Platz:<br>${formatLeaderboardRow(own,own.place-1)}`;
+}
+leaderboardList.innerHTML=html;
 }catch{
 if(!(await allowLocalFallback())){leaderboardList.textContent=serverStorageMessage();requestAnimationFrame(updatePixelScrollbar);return}
 const sqliteRows=await localLeaderboardSqlite();
