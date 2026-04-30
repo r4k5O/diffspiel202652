@@ -35,7 +35,7 @@ export default async function handler(req, res) {
       const existingUpdatedAt = await getProgressUpdatedAt(student.id, String(slot));
       const remoteTime = existingUpdatedAt ? new Date(existingUpdatedAt).getTime() : 0;
       const clientTime = new Date(updatedAt).getTime();
-      if (remoteTime && clientTime && remoteTime > clientTime) {
+      if (remoteTime && clientTime && remoteTime - clientTime > 1000) {
         return json(res, 409, { error: "conflict", message: "Es existiert bereits ein neuerer Spielstand." });
       }
     }

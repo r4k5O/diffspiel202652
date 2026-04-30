@@ -960,7 +960,11 @@ if(!authSession)return;
 updateLocalBestScore();
 if(authSession.local)return;
 try{
-await apiJson('/api/progress','PUT',{slot,currentLevel:chapters.filter(c=>c.done).length,progressData:data,score:data.score,updatedAt:data.updatedAt});
+const saved=await apiJson('/api/progress','PUT',{slot,currentLevel:chapters.filter(c=>c.done).length,progressData:data,score:data.score,updatedAt:data.updatedAt});
+if(saved.updatedAt){
+data.updatedAt=saved.updatedAt;
+setS(slot,JSON.stringify(data));
+}
 await apiJson('/api/scores','POST',{
 score:data.score,
 level:chapters.filter(c=>c.done).length,
@@ -972,6 +976,17 @@ completed:chapters.every(c=>c.done)
 });
 if(!silent)setSyncStatus('Spielstand gesichert.');
 }catch(err){
+if(err.message==='conflict'){
+const remote=await apiJson('/api/progress','GET').catch(()=>null);
+const remoteData=remote?.progressData||remote?.progress_data;
+if(remoteData){
+setS(slot,JSON.stringify(remoteData));
+applySaveData(remoteData);
+updateStats();
+if(!silent)setSyncStatus('Neuerer Spielstand geladen.');
+return;
+}
+}
 if(!silent)setSyncStatus('Spielstand konnte gerade nicht gesichert werden.');
 }
 }
@@ -1233,6 +1248,15 @@ return copy;
 function nextCorrectSlot(answerCount){
 if(correctSlotBag.length===0)correctSlotBag=shuffleArray([...Array(answerCount).keys()]);
 return correctSlotBag.pop();
+}
+
+function previewCorrectSlots(answerCount,picks){
+const savedBag=[...correctSlotBag];
+correctSlotBag=[];
+const slots=[];
+for(let i=0;i<picks;i++)slots.push(nextCorrectSlot(answerCount));
+correctSlotBag=savedBag;
+return slots;
 }
 
 function shuffledAnswers(q){
@@ -1694,10 +1718,10 @@ console.assert(pages.length>=30,'enough archive pages for all zones');
 console.assert(pages.every(p=>zoneAt(p.x,p.y)),'all archive pages are placed inside zones');
 console.assert(Object.keys(learningScenes).length===8,'learning cutscenes exist');
 console.assert(typeof shuffledAnswers==='function','answer shuffler exists');
-console.assert(typeof nextCorrectSlot==='function','fair correct-slot selector exists');
+console.assert(typeof nextCorrectSlot==='function'&&typeof previewCorrectSlots==='function','fair correct-slot selector exists');
 console.assert(chapters.every(c=>learningScenes[c.id]&&learningScenes[c.id].length>=1),'every chapter has a cutscene');
 console.assert(shuffledAnswers(chapters[0].qs[0]).some(a=>a.isCorrect),'shuffled answers keep correct flag');
-const testSlots=[nextCorrectSlot(3),nextCorrectSlot(3),nextCorrectSlot(3)];
+const testSlots=previewCorrectSlots(3,3);
 console.assert(new Set(testSlots).size===3,'correct answer positions cycle through A/B/C');
 console.assert(glitches.every(g=>g.spd<=.005),'slow enemies');
 console.assert(glitches.every(g=>'defeated' in g),'glitches can be defeated and saved');
