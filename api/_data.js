@@ -171,6 +171,19 @@ export async function findStudentByUsername(username) {
   return rows[0] || null;
 }
 
+export async function updateStudentSecret(studentId, field, secretHash) {
+  if (!["password_hash", "word_protection_hash"].includes(field)) {
+    throw new Error("invalid_secret_field");
+  }
+
+  if (getDatabaseType() === "postgres") {
+    await pgQuery(`UPDATE students SET ${field} = $1, updated_at = NOW() WHERE id = $2`, [secretHash, studentId]);
+    return;
+  }
+
+  await sqliteExecute(`UPDATE students SET ${field} = ?, updated_at = ? WHERE id = ?`, [secretHash, nowIso(), studentId]);
+}
+
 export async function createStudent({ username, passwordHash, wordProtectionHash, deviceIdentifier }) {
   try {
     if (getDatabaseType() === "postgres") {

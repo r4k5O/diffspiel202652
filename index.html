@@ -57,6 +57,7 @@ canvas{display:block;background:#111;image-rendering:pixelated;touch-action:none
 .auth-panel{display:grid;gap:8px;text-align:left}
 .auth-panel h2{margin:0;color:var(--accent);font-size:15px;text-align:center}
 .auth-panel input{width:100%;min-height:38px;color:var(--text);background:#10101b;border:4px solid #050509;padding:8px;font:inherit;outline:none}
+.auth-panel select{width:100%;min-height:38px;color:var(--text);background:#10101b;border:4px solid #050509;padding:8px;font:inherit;outline:none}
 .auth-panel input:focus{box-shadow:0 0 0 2px var(--accent)}
 .auth-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .auth-actions button,.auth-panel .wide-button{padding:8px 10px}
@@ -196,6 +197,13 @@ canvas{display:block;background:#111;image-rendering:pixelated;touch-action:none
           </div>
           <button id="syncButton" class="wide-button" type="button">Fortschritt sichern</button>
           <button id="logoutButton" class="wide-button" type="button">Abmelden</button>
+          <select id="recoverModeInput" aria-label="Was soll zurückgesetzt werden?">
+            <option value="password">Passwort vergessen: mit Wortschutz zurücksetzen</option>
+            <option value="wordProtection">Wortschutz vergessen: mit Passwort zurücksetzen</option>
+          </select>
+          <input id="knownSecretInput" type="password" autocomplete="off" placeholder="Bekanntes Passwort oder Wortschutz" maxlength="80">
+          <input id="newSecretInput" type="password" autocomplete="new-password" placeholder="Neues Passwort oder neuer Wortschutz" maxlength="80">
+          <button id="recoverButton" class="wide-button" type="button">Vergessenes Geheimnis zurücksetzen</button>
           <div id="syncStatus" class="sync-status">Nicht angemeldet. Dein Fortschritt bleibt auf diesem Gerät erhalten.</div>
         </div>
       </details>
@@ -295,7 +303,7 @@ const canvas=$('game'),ctx=canvas.getContext('2d');
 ctx.imageSmoothingEnabled=false;
 
 const menuBox=$('menuBox'),fakeScrollbar=$('fakeScrollbar'),fakeScrollbarThumb=$('fakeScrollbarThumb');
-const startScreen=$('startScreen'),startButton=$('startButton'),continueButton=$('continueButton'),saveSlot1Button=$('saveSlot1Button'),saveSlot2Button=$('saveSlot2Button'),saveSlot3Button=$('saveSlot3Button'),saveCurrentButton=$('saveCurrentButton'),clearSavesButton=$('clearSavesButton'),researchButton=$('researchButton'),githubButton=$('githubButton'),restartButton=$('restartButton'),controlsButton=$('controlsButton'),creditsButton=$('creditsButton'),soundButton=$('soundButton'),menuInfo=$('menuInfo'),scoreHud=$('scoreHud'),foundHud=$('foundHud'),pagesHud=$('pagesHud'),zonesHud=$('zonesHud'),livesHud=$('livesHud'),taskHud=$('taskHud'),dialog=$('dialog'),dialogTitle=$('dialogTitle'),dialogText=$('dialogText'),answersEl=$('answers'),cutscene=$('cutscene'),sceneArt=$('sceneArt'),cutTitle=$('cutTitle'),cutBody=$('cutBody'),factGrid=$('factGrid'),winEl=$('win'),winText=$('winText'),touchInteract=$('touchInteract'),touchJump=$('touchJump'),touchMenu=$('touchMenu'),quickSaveButton=$('quickSaveButton'),audioWidget=$('audioWidget'),speakerButton=$('speakerButton'),dialogVolumeInput=$('dialogVolumeInput'),dialogVolumeValue=$('dialogVolumeValue'),muteGameButton=$('muteGameButton'),menuIcon=$('menuIcon'),menuIconFallback=$('menuIconFallback'),studentNameInput=$('studentNameInput'),studentPasswordInput=$('studentPasswordInput'),studentWordInput=$('studentWordInput'),registerButton=$('registerButton'),loginButton=$('loginButton'),syncButton=$('syncButton'),leaderboardButton=$('leaderboardButton'),logoutButton=$('logoutButton'),syncStatus=$('syncStatus'),leaderboardList=$('leaderboardList'),compatList=$('compatList');
+const startScreen=$('startScreen'),startButton=$('startButton'),continueButton=$('continueButton'),saveSlot1Button=$('saveSlot1Button'),saveSlot2Button=$('saveSlot2Button'),saveSlot3Button=$('saveSlot3Button'),saveCurrentButton=$('saveCurrentButton'),clearSavesButton=$('clearSavesButton'),researchButton=$('researchButton'),githubButton=$('githubButton'),restartButton=$('restartButton'),controlsButton=$('controlsButton'),creditsButton=$('creditsButton'),soundButton=$('soundButton'),menuInfo=$('menuInfo'),scoreHud=$('scoreHud'),foundHud=$('foundHud'),pagesHud=$('pagesHud'),zonesHud=$('zonesHud'),livesHud=$('livesHud'),taskHud=$('taskHud'),dialog=$('dialog'),dialogTitle=$('dialogTitle'),dialogText=$('dialogText'),answersEl=$('answers'),cutscene=$('cutscene'),sceneArt=$('sceneArt'),cutTitle=$('cutTitle'),cutBody=$('cutBody'),factGrid=$('factGrid'),winEl=$('win'),winText=$('winText'),touchInteract=$('touchInteract'),touchJump=$('touchJump'),touchMenu=$('touchMenu'),quickSaveButton=$('quickSaveButton'),audioWidget=$('audioWidget'),speakerButton=$('speakerButton'),dialogVolumeInput=$('dialogVolumeInput'),dialogVolumeValue=$('dialogVolumeValue'),muteGameButton=$('muteGameButton'),menuIcon=$('menuIcon'),menuIconFallback=$('menuIconFallback'),studentNameInput=$('studentNameInput'),studentPasswordInput=$('studentPasswordInput'),studentWordInput=$('studentWordInput'),registerButton=$('registerButton'),loginButton=$('loginButton'),syncButton=$('syncButton'),leaderboardButton=$('leaderboardButton'),logoutButton=$('logoutButton'),syncStatus=$('syncStatus'),leaderboardList=$('leaderboardList'),compatList=$('compatList'),recoverModeInput=$('recoverModeInput'),knownSecretInput=$('knownSecretInput'),newSecretInput=$('newSecretInput'),recoverButton=$('recoverButton');
 
 let locked=true,menuOpen=true,gameStarted=false,score=0,lives=5,mistakes=0,gameStartedAt=null,lastAutoSave=0,currentSlot='autosave',fallCooldown=0,lastJump=0,activeChapter=null,activeQuestionIndex=0,activeCutscene=null,cutsceneIndex=0,afterCutscene=null,time=0,weatherTimer=0,weather='Sonne',winSoundPlayed=false;
 let cam={x:0,y:0};
@@ -935,12 +943,32 @@ refreshAuthUi();
 studentPasswordInput.value='';
 studentWordInput.value='';
 }
+async function recoverSecret(){
+const username=textValue(studentNameInput),mode=recoverModeInput.value,knownSecret=knownSecretInput.value,newSecret=newSecretInput.value;
+if(username.length<2){setSyncStatus('Bitte zuerst den Schülernamen eintragen.');return}
+if(!knownSecret){setSyncStatus('Bitte das bekannte Geheimnis eingeben.');return}
+if(newSecret.length<8){setSyncStatus('Das neue Geheimnis braucht mindestens 8 Zeichen.');return}
+if(knownSecret===newSecret){setSyncStatus('Das neue Geheimnis muss anders sein.');return}
+try{
+const data=await apiJson('/api/recover','POST',{username,mode,knownSecret,newSecret});
+const label=data.reset==='password'?'Passwort':'Wortschutz';
+setSyncStatus(label+' wurde zurückgesetzt. Du kannst dich jetzt anmelden.');
+knownSecretInput.value='';
+newSecretInput.value='';
+studentPasswordInput.value='';
+studentWordInput.value='';
+}catch{
+setSyncStatus('Zurücksetzen fehlgeschlagen. Prüfe Schülername und bekanntes Geheimnis.');
+}
+}
 function logoutStudent(){
 authSession=null;
 clearLocalAuthData();
 leaderboardList.textContent='';
 studentPasswordInput.value='';
 studentWordInput.value='';
+knownSecretInput.value='';
+newSecretInput.value='';
 setSyncStatus('Abgemeldet. Lokale Anmeldedaten wurden gelöscht.');
 refreshAuthUi();
 }
@@ -1780,6 +1808,7 @@ runSmokeTests();
 registerButton.onclick=e=>{e.preventDefault();registerStudent()};
 loginButton.onclick=e=>{e.preventDefault();loginStudent()};
 syncButton.onclick=e=>{e.preventDefault();syncNow()};
+recoverButton.onclick=e=>{e.preventDefault();recoverSecret()};
 leaderboardButton.onclick=e=>{e.preventDefault();loadLeaderboard()};
 logoutButton.onclick=e=>{e.preventDefault();logoutStudent()};
 startButton.onclick=e=>{e.preventDefault();startIntro()};
